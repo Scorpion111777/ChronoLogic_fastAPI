@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # Mount static files and templates
-app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
+app.mount("frontend/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
 
 # Routers
