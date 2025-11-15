@@ -5,36 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5cdc849c-776c-4be7-86ca-e60f5af12483" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/App.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/__tests__/App.spec.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/assets/base.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/assets/icons/FilterIcon.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/assets/icons/SearchIcon.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/assets/icons/favicon.ico" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/assets/icons/logo.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/assets/main.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/jsconfig.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/main.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/package-lock.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/package.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/router/index.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/stores/counter.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/vite.config.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/frontend/vitest.config.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/pythonProject.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/pythonProject.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/static/style.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/static/workers.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/templates/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/templates/result.html" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/run.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/static/style.css" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/static/style.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/static/workers.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/static/workers.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/templates/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/templates/result.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/templates/result.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/routers/web.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/utils/file_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/utils/file_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,28 +27,31 @@
   &quot;associatedIndex&quot;: 8
 }</component>
   <component name="ProjectId" id="35KEWADvZCroCO5MSohLZpNdQmb" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.main.executor": "Debug",
-    "Python.run.executor": "Debug",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "disable.download.node.interpreter.editor.notification": "true",
-    "git-widget-placeholder": "viktor/feature/init-vue",
-    "last_opened_file_path": "D:/ChronologicBackend/ChronoLogic_fastAPI",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.main.executor&quot;: &quot;Debug&quot;,
+    &quot;Python.run.executor&quot;: &quot;Debug&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;disable.download.node.interpreter.editor.notification&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;viktor/feature/init-vue&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/ChronologicBackend/ChronoLogic_fastAPI&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="D:\ChronologicBackend\ChronoLogic_fastAPI\app" />
@@ -155,6 +137,7 @@
       <workItem from="1763019220850" duration="31000" />
       <workItem from="1763023232961" duration="8750000" />
       <workItem from="1763068560349" duration="1653000" />
+      <workItem from="1763216419357" duration="3967000" />
     </task>
     <servers />
   </component>
@@ -162,7 +145,7 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$run.coverage" NAME="run Coverage Results" MODIFIED="1762953343373" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$run.coverage" NAME="run Coverage Results" MODIFIED="1763216665129" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$main.coverage" NAME="main Coverage Results" MODIFIED="1762949438580" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
