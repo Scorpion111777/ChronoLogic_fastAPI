@@ -1,9 +1,6 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import web, api
-from app.core.config import settings
+from app.routers import  api
 
 app = FastAPI(title="ChronoLogic")
 
@@ -16,14 +13,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files and templates
-app.mount("frontend/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
-templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
+
 
 # Routers
-app.include_router(web.router)
+
 app.include_router(api.router)
 
 @app.get("/health")
 def health():
     return {"status": "ok", "app": "ChronoLogic"}
+
