@@ -6,14 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="5cdc849c-776c-4be7-86ca-e60f5af12483" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/static/style.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/static/workers.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/templates/index.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/templates/result.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routers/web.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/utils/file_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/utils/file_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -137,7 +129,7 @@
       <workItem from="1763019220850" duration="31000" />
       <workItem from="1763023232961" duration="8750000" />
       <workItem from="1763068560349" duration="1653000" />
-      <workItem from="1763216419357" duration="3967000" />
+      <workItem from="1763216419357" duration="5903000" />
     </task>
     <servers />
   </component>
@@ -145,7 +137,7 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$run.coverage" NAME="run Coverage Results" MODIFIED="1763216665129" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$run.coverage" NAME="run Coverage Results" MODIFIED="1763223541467" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$main.coverage" NAME="main Coverage Results" MODIFIED="1762949438580" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
