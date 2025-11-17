@@ -202,6 +202,10 @@ function parseCombinedCSV(text) {
 
 
 // csv таблиця
+// Повністю видаліть вашу стару функцію parseCombinedCSV
+// ...
+
+// Замініть вашу стару функцію handleFileUpload на цю:
 async function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file || !file.name.endsWith('.csv')) {
@@ -212,16 +216,52 @@ async function handleFileUpload(event) {
   const reader = new FileReader()
   reader.onload = async (e) => {
     try {
-      const { workers: parsedWorkers, operations: parsedOps } = parseCombinedCSV(e.target.result)
+      const fileContent = e.target.result
 
-      if (parsedWorkers.length === 0) throw new Error('Не знайдено робітників (рядки "ВСЬОГО ДЛЯ РОБІТНИКА")')
+      // --- ОНОВЛЕНА ЛОГІКА ПАРСИНГУ ---
+      // Використовуємо Papa.parse замість parseCombinedCSV
+      const parsedData = Papa.parse(fileContent, {
+        header: true, // Вказуємо, що у файлі є заголовок
+        skipEmptyLines: true, // Пропускаємо порожні рядки
+        delimiter: ',', // Явно вказуємо роздільник
+      })
 
-      workers.value = parsedWorkers
+      if (parsedData.errors.length) {
+        // Якщо Papa.parse не зміг обробити файл, показуємо помилку
+        throw new Error('Помилка парсингу CSV: ' + parsedData.errors[0].message)
+      }
 
-      // Відправляємо оригінальний файл + workers на API
+      const allRows = parsedData.data
+      const workerRows = []
+      const operationRows = []
+
+      // Ця логіка залишається такою ж, як у вас і була
+      allRows.forEach((row) => {
+        if (row['Назва технологічної операції']?.includes('ВСЬОГО ДЛЯ РОБІТНИКА')) {
+          const id = row['Робітник'] || `w-${crypto.randomUUID().slice(0, 4)}`
+          workerRows.push({
+            id,
+            grade: parseInt(row['Розряд']) || 1,
+            equipment: (row['Обладнання'] || '').trim(),
+          })
+        } else if (row['№ п/п'] && row['№ тех.оп.']) {
+          operationRows.push(row)
+        }
+      })
+
+      if (workerRows.length === 0) {
+        throw new Error('Не знайдено робітників (рядки "ВСЬОГО ДЛЯ РОБІТНИКА")')
+      }
+      // --- КІНЕЦЬ ОНОВЛЕНОЇ ЛОГІКИ ---
+
+      workers.value = workerRows
+
+      // Відправляємо ОРИГІНАЛЬНИЙ файл (не текст) + workers на API
+      // Бекенд (pandas) тепер також зможе його прочитати,
+      // АЛЕ тільки якщо ви виправите сам файл (Крок 2)
       const result = await fetchExportToCSV(file, workers.value)
 
-      console.log('API response:', result)  // Подивитися у консоль
+      console.log('API response:', result)
 
       if (!result.success) {
         throw new Error(result.error || 'Помилка API')
@@ -231,9 +271,8 @@ async function handleFileUpload(event) {
         throw new Error('Невірний формат даних: data не масив')
       }
 
-
-      // Вивід результату
-      operations.value = result.data.map(row => ({
+      // Вивід результату (без змін)
+      operations.value = result.data.map((row) => ({
         id: crypto.randomUUID(),
         num: row['№ тех.оп.'] || '',
         name: row['Назва технологічної операції'] || '',
@@ -244,9 +283,11 @@ async function handleFileUpload(event) {
         worker: row['Робітник'],
       }))
 
-      alert(`Загальний час: ${result.total_sum} хв\nМакс. паралельний: ${result.max_parallel_time} хв`)
+      alert(
+        `Загальний час: ${result.total_sum} хв\nМакс. паралельний: ${result.max_parallel_time} хв`,
+      )
 
-      // Автозавантаження результату
+      // Автозавантаження результату (без змін)
       const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8-sig' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

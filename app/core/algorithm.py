@@ -16,7 +16,6 @@ def process_operations(csv_bytes: bytes, workers: List[Dict[str, Any]]) -> Dict[
     if time_col not in df.columns:
         raise ValueError(f"CSV must contain '{time_col}' column")
 
-    # === ОЧИЩЕННЯ ЧАСУ: NaN → 0.0 ===
     df[time_col] = (
         df[time_col]
         .astype(str)
@@ -24,7 +23,23 @@ def process_operations(csv_bytes: bytes, workers: List[Dict[str, Any]]) -> Dict[
         .str.replace(' ', '', regex=False)
         .str.replace(',', '.', regex=False)
     )
-    df[time_col] = pd.to_numeric(df[time_col], errors="coerce").fillna(0.0).round(2)  # ← NaN → 0.0
+    df[time_col] = pd.to_numeric(df[time_col], errors="coerce").fillna(0.0).round(2)
+
+    # === ОЧИЩЕННЯ РОЗРЯДУ: NaN → 0 ===
+    if "Розряд" not in df.columns:
+        raise ValueError("CSV must contain 'Розряд' column")
+
+    df["Розряд"] = (
+        df["Розряд"]
+        .astype(str)
+        .str.replace('\xa0', '', regex=False)
+        .str.replace(' ', '', regex=False)
+        .str.replace(',', '.', regex=False)
+    )
+    # Перетворюємо в число, заповнюємо NaN нулями (або 1, якщо це логічніше)
+    # і одразу перетворюємо на ціле число (int)
+    df["Розряд"] = pd.to_numeric(df["Розряд"], errors="coerce").fillna(0).astype(int)
+
 
     # === СОРТУВАННЯ ===
     if "№ п/п" in df.columns:
@@ -38,7 +53,7 @@ def process_operations(csv_bytes: bytes, workers: List[Dict[str, Any]]) -> Dict[
     for equipment, group in df.groupby("Обладнання"):
         available_workers = [w for w in workers if w["equipment"].strip().lower() == str(equipment).strip().lower()]
         for _, row in group.iterrows():
-            op_grade = int(float(row["Розряд"]))
+            op_grade = row["Розряд"]
             eligible = [w for w in available_workers if int(w["grade"]) >= op_grade]
             if not eligible:
                 continue
@@ -90,8 +105,16 @@ def process_operations(csv_bytes: bytes, workers: List[Dict[str, Any]]) -> Dict[
         result_df = result_df.sort_values(by=["№ п/п"], ignore_index=True)
 
     # === ПІДСУМКИ ===
-    total_sum = round(df[time_col].sum(), 2)
-    max_parallel_time = round(max(worker_loads.values()) if worker_loads else 0, 2)
+    real_operations = df[
+        ~df["Назва технологічної операції"].str.contains("ВСЬОГО ДЛЯ РОБІТНИКА", na=False)
+    ]
+    total_sum = round(real_operations[time_col].sum(skipna=True), 2)
+
+    max_parallel_time = round(
+        max(worker_loads.values(), default=0), 2
+    )
+    # --- ЦЕЙ РЯДОК ВЖЕ НА МІСЦІ І ВСЕ ВИПРАВЛЯЄ ---
+    result_df = result_df.where(pd.notna(result_df), None)
 
     return {
         "table": result_df.to_dict(orient="records"),

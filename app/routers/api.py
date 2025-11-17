@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, Form
 from fastapi.responses import JSONResponse
 import json
 from app.core.algorithm import process_operations
+import math
 
 router = APIRouter(prefix="/api", tags=["API"])
 
@@ -21,11 +22,14 @@ async def process_file(file: UploadFile, workers: str = Form(...)):
         workers_data = json.loads(workers)
         result = process_operations(csv_bytes, workers_data)
 
+        total_sum = result["total_sum"]
+        max_parallel_time = result["max_parallel_time"]
+
         response = JSONResponse({
             "success": True,
             "data": result["table"],
-            "total_sum": float(result["total_sum"]),
-            "max_parallel_time": float(result["max_parallel_time"]),
+            "total_sum": 0.0 if math.isnan(total_sum) else float(total_sum),
+            "max_parallel_time": 0.0 if math.isnan(max_parallel_time) else float(max_parallel_time),
             "csv": result["result_csv"]
         })
         response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
