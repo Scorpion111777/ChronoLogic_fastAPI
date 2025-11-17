@@ -213,93 +213,48 @@ async function handleFileUpload(event) {
     return
   }
 
-  const reader = new FileReader()
-  reader.onload = async (e) => {
-    try {
-      const fileContent = e.target.result
+  try {
+    // Відправляємо тільки файл — бекенд сам розбере робітників і все інше
+    const result = await fetchExportToCSV(file, []) // другий параметр порожній або можна взагалі прибрати в fetchExportToCSV
 
-      // --- ОНОВЛЕНА ЛОГІКА ПАРСИНГУ ---
-      // Використовуємо Papa.parse замість parseCombinedCSV
-      const parsedData = Papa.parse(fileContent, {
-        header: true, // Вказуємо, що у файлі є заголовок
-        skipEmptyLines: true, // Пропускаємо порожні рядки
-        delimiter: ',', // Явно вказуємо роздільник
-      })
-
-      if (parsedData.errors.length) {
-        // Якщо Papa.parse не зміг обробити файл, показуємо помилку
-        throw new Error('Помилка парсингу CSV: ' + parsedData.errors[0].message)
-      }
-
-      const allRows = parsedData.data
-      const workerRows = []
-      const operationRows = []
-
-      // Ця логіка залишається такою ж, як у вас і була
-      allRows.forEach((row) => {
-        if (row['Назва технологічної операції']?.includes('ВСЬОГО ДЛЯ РОБІТНИКА')) {
-          const id = row['Робітник'] || `w-${crypto.randomUUID().slice(0, 4)}`
-          workerRows.push({
-            id,
-            grade: parseInt(row['Розряд']) || 1,
-            equipment: (row['Обладнання'] || '').trim(),
-          })
-        } else if (row['№ п/п'] && row['№ тех.оп.']) {
-          operationRows.push(row)
-        }
-      })
-
-      if (workerRows.length === 0) {
-        throw new Error('Не знайдено робітників (рядки "ВСЬОГО ДЛЯ РОБІТНИКА")')
-      }
-      // --- КІНЕЦЬ ОНОВЛЕНОЇ ЛОГІКИ ---
-
-      workers.value = workerRows
-
-      // Відправляємо ОРИГІНАЛЬНИЙ файл (не текст) + workers на API
-      // Бекенд (pandas) тепер також зможе його прочитати,
-      // АЛЕ тільки якщо ви виправите сам файл (Крок 2)
-      const result = await fetchExportToCSV(file, workers.value)
-
-      console.log('API response:', result)
-
-      if (!result.success) {
-        throw new Error(result.error || 'Помилка API')
-      }
-
-      if (!Array.isArray(result.data)) {
-        throw new Error('Невірний формат даних: data не масив')
-      }
-
-      // Вивід результату (без змін)
-      operations.value = result.data.map((row) => ({
-        id: crypto.randomUUID(),
-        num: row['№ тех.оп.'] || '',
-        name: row['Назва технологічної операції'] || '',
-        time: row['Затрати часу, хв'],
-        rank: row['Розряд'],
-        equipment: row['Обладнання'],
-        conditions: row['Технічні умови'],
-        worker: row['Робітник'],
-      }))
-
-      alert(
-        `Загальний час: ${result.total_sum} хв\nМакс. паралельний: ${result.max_parallel_time} хв`,
-      )
-
-      // Автозавантаження результату (без змін)
-      const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8-sig' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'result.csv'
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      alert('Помилка: ' + err.message)
+    if (!result.success || !Array.isArray(result.data)) {
+      throw new Error(result.error || 'Помилка обробки на сервері')
     }
+
+    // Заповнюємо таблицю з готового JSON від бекенду
+    operations.value = result.data.map(row => ({
+      id: crypto.randomUUID(),
+      num: row['№ тех.оп.'] || '',
+      name: row['Назва технологічної операції'] || '',
+      time: row['Затрати часу, хв'] || 0,
+      rank: row['Розряд'] || 4,
+      equipment: row['Обладнання'] || '',
+      conditions: row['Технічні умови'] || '',
+      worker: row['Робітник'] || '',
+    }))
+
+    // Оновлюємо workers (якщо треба для кольорів і групування)
+    const uniqueWorkers = [...new Set(result.data.map(r => r['Робітник']).filter(Boolean))]
+    workers.value = uniqueWorkers.map((id, i) => ({
+      id: String(id),
+      grade: 4,
+      equipment: ''
+    }))
+
+
+    // Автозавантаження
+    const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8-sig' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'result.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+
+  } catch (err) {
+    alert('Помилка: ' + (err.message || 'Не вдалося обробити файл'))
+    console.error(err)
   }
-  reader.readAsText(file, 'UTF-8')
 }
 
 function exportToCSV() {

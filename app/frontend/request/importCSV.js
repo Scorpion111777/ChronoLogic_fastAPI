@@ -1,27 +1,17 @@
-async function fetchExportToCSV(file, workers) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('workers', JSON.stringify(workers));
+async function fetchExportToCSV(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  // workers більше не потрібні — бекенд сам їх знайде
 
-  const response = await fetch('http://127.0.0.1:8000/api/process', {
+  const response = await fetch('http://127.0.0.1:8000/api/process-fixed', {
     method: 'POST',
     body: formData,
-  });
-const text = await response.text()
-console.log('Raw response:', text)  // ← Побачиш, що саме прийшло
+  })
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${text}`)
-  }
+  const text = await response.text()
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${text}`)
 
-  let result
-  try {
-    result = JSON.parse(text)
-  } catch (e) {
-    throw new Error('Invalid JSON: ' + text)
-  }
-
-  return result
+  return JSON.parse(text)
 }
 
-export default fetchExportToCSV;
+export default fetchExportToCSV
