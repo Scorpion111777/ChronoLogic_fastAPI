@@ -263,32 +263,37 @@ function exportToCSV() {
     return
   }
 
-  const dataToExport = operations.value.map((op) => {
+  const dataToExport = operations.value.map((op, index) => {
     return {
-      '№ Тех. операції': op.num,
-      'Назва технологічної операції': op.name,
-      'Затрати часу, хв': op.time,
-      Розряд: op.rank,
-      Обладнання: op.equipment,
-      'Технічні умови': op.conditions,
-      Виконавець: op.worker,
+      'Робітник': op.worker || '',
+      'Розряд': op.rank || '',
+      'Обладнання': op.equipment || '',
+      '№ п/п': index + 1,
+      '№ тех.оп.': op.num || '',
+      'Назва технологічної операції': op.name || '',
+      'Затрати часу, хв': op.time || 0,
+      'Технічні умови': op.conditions || ''
     }
   })
 
   const csv = Papa.unparse(dataToExport, {
     header: true,
+    quotes: true,
   })
 
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+
   const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
   link.setAttribute('href', url)
-  link.setAttribute('download', 'edited_operations.csv')
+  link.setAttribute('download', 'operations_export.csv')
   link.style.visibility = 'hidden'
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
+
 
 function addNewRow() {
   operations.value.push({
