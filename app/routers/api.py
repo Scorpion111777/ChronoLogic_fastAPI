@@ -1,23 +1,34 @@
+import os
+import time
+
 from fastapi import APIRouter, UploadFile, Form
 from fastapi.responses import JSONResponse
 import json
-from app.core.algorithm import process_operations
+from app.core.algorithm import  process_fixed_operations
+import math
 
 router = APIRouter(prefix="/api", tags=["API"])
 
-@router.post("/process")
-async def process_file(file: UploadFile, workers: str = Form(...)):
-    try:
-        csv_bytes = await file.read()
-        workers_data = json.loads(workers)
-        result = process_operations(csv_bytes, workers_data)
+@router.options("/process")
+async def options_process():
+    return JSONResponse(content={}, headers={
+        "Access-Control-Allow-Origin": "http://localhost:5173",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Credentials": "true",
+    })
 
-        return JSONResponse({
-            "success": True,
-            "data": result["table"],
-            "total_sum": result["total_sum"],
-            "max_parallel_time": result["max_parallel_time"],
-            "csv": result["result_csv"]
-        })
-    except Exception as e:
-        return JSONResponse({"success": False, "error": str(e)})
+
+@router.post("/process-fixed")
+async def process_fixed(file: UploadFile):
+    csv_bytes = await file.read()
+    result = process_fixed_operations(csv_bytes)  # тепер приймає bytes
+
+    return JSONResponse({
+        "success": True,
+        **result,
+        "headers": {
+            "Access-Control-Allow-Origin": "http://localhost:5173",
+            "Access-Control-Allow-Credentials": "true"
+        }
+    })

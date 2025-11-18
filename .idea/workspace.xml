@@ -6,22 +6,29 @@
   <component name="ChangeListManager">
     <list default="true" id="5cdc849c-776c-4be7-86ca-e60f5af12483" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/static/style.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/static/workers.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/templates/index.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/templates/result.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routers/web.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/utils/file_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/utils/file_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/core/algorithm.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/algorithm.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/request/importCSV.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/request/importCSV.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/routers/api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/api.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="CSS File" />
+        <option value="JavaScript File" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
@@ -43,6 +50,7 @@
     &quot;disable.download.node.interpreter.editor.notification&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;viktor/feature/init-vue&quot;,
     &quot;last_opened_file_path&quot;: &quot;D:/ChronologicBackend/ChronoLogic_fastAPI&quot;,
+    &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -137,7 +145,11 @@
       <workItem from="1763019220850" duration="31000" />
       <workItem from="1763023232961" duration="8750000" />
       <workItem from="1763068560349" duration="1653000" />
-      <workItem from="1763216419357" duration="3967000" />
+      <workItem from="1763216419357" duration="5903000" />
+      <workItem from="1763304138091" duration="11432000" />
+      <workItem from="1763366347322" duration="425000" />
+      <workItem from="1763373727512" duration="1738000" />
+      <workItem from="1763397176289" duration="8238000" />
     </task>
     <servers />
   </component>
@@ -145,7 +157,7 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$run.coverage" NAME="run Coverage Results" MODIFIED="1763216665129" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$run.coverage" NAME="run Coverage Results" MODIFIED="1763412745469" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/ChronoLogic_fastAPI$main.coverage" NAME="main Coverage Results" MODIFIED="1762949438580" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

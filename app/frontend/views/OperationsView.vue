@@ -3,8 +3,11 @@ import { ref, computed } from 'vue'
 import FilterIcon from '../assets/icons/FilterIcon.vue'
 import SearchIcon from '../assets/icons/SearchIcon.vue'
 import Papa from 'papaparse'
-
+import './styles/OperationsViewStyles.css'
+import fetchExportToCSV from '../request/importCSV.js'
 const operations = ref([])
+const workers = ref([])
+
 
 // логіка пошуку
 const searchQuery = ref('')
@@ -165,39 +168,93 @@ function setSort(key) {
   isSortMenuOpen.value = false
 }
 
-// csv таблиця
-function handleFileUpload(event) {
-  const file = event.target.files[0]
-  if (!file) return
 
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: (results) => {
-      if (!results || !results.data) {
-        console.error('Parsing error or empty file')
-        alert('Не вдалося розібрати файл. Можливо, він порожній або пошкоджений.')
-        return
-      }
 
-      const parsedOperations = results.data.map((row, index) => ({
-        id: crypto.randomUUID(),
-        num: row['№ Тех. операції'] || '',
-        name: row['Назва технологічної операції'] || 'Нова операція',
-        time: parseFloat(String(row['Затрати часу, хв'] || 0).replace(',', '.')) || 0,
-        rank: parseInt(row['Розряд'] || 1) || 1,
-        equipment: row['Обладнання'] || '',
-        conditions: row['Технічні умови'] || '',
-        worker: row['Виконавець'] || 'Не призначено',
-      }))
+function parseCombinedCSV(text) {
+  const lines = text.trim().split('\n').map(l => l.trim())
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
 
-      operations.value = parsedOperations
-    },
-    error: (error) => {
-      console.error('Error parsing CSV:', error)
-      alert('Не вдалося розібрати файл. Перевірте консоль.')
-    },
+  const workerRows = []
+  const operationRows = []
+
+  lines.slice(1).forEach(line => {
+    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+    const row = {}
+    headers.forEach((h, i) => row[h] = values[i] || '')
+
+    if (row['Назва технологічної операції']?.includes('ВСЬОГО ДЛЯ РОБІТНИКА')) {
+      // Робітник: Блок, Робітник, Розряд, Обладнання
+      const id = row['Робітник'] || `w-${crypto.randomUUID().slice(0,4)}`
+      workerRows.push({
+        id,
+        grade: parseInt(row['Розряд']) || 1,
+        equipment: (row['Обладнання'] || '').trim()
+      })
+    } else if (row['№ п/п'] && row['№ тех.оп.']) {
+      operationRows.push(row)
+    }
   })
+
+  return { workers: workerRows, operations: operationRows }
+}
+
+
+
+
+// csv таблиця
+// Повністю видаліть вашу стару функцію parseCombinedCSV
+// ...
+
+// Замініть вашу стару функцію handleFileUpload на цю:
+async function handleFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file || !file.name.endsWith('.csv')) {
+    alert('Завантажуйте лише CSV-файл!')
+    return
+  }
+
+  try {
+    // Відправляємо тільки файл — бекенд сам розбере робітників і все інше
+    const result = await fetchExportToCSV(file, []) // другий параметр порожній або можна взагалі прибрати в fetchExportToCSV
+
+    if (!result.success || !Array.isArray(result.data)) {
+      throw new Error(result.error || 'Помилка обробки на сервері')
+    }
+
+    // Заповнюємо таблицю з готового JSON від бекенду
+    operations.value = result.data.map(row => ({
+      id: crypto.randomUUID(),
+      num: row['№ тех.оп.'] || '',
+      name: row['Назва технологічної операції'] || '',
+      time: row['Затрати часу, хв'] || 0,
+      rank: row['Розряд'] || 4,
+      equipment: row['Обладнання'] || '',
+      conditions: row['Технічні умови'] || '',
+      worker: row['Робітник'] || '',
+    }))
+
+    // Оновлюємо workers (якщо треба для кольорів і групування)
+    const uniqueWorkers = [...new Set(result.data.map(r => r['Робітник']).filter(Boolean))]
+    workers.value = uniqueWorkers.map((id, i) => ({
+      id: String(id),
+      grade: 4,
+      equipment: ''
+    }))
+
+
+    // Автозавантаження
+    const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8-sig' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'result.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+
+  } catch (err) {
+    alert('Помилка: ' + (err.message || 'Не вдалося обробити файл'))
+    console.error(err)
+  }
 }
 
 function exportToCSV() {
@@ -390,404 +447,3 @@ function addNewRow() {
   </main>
 </template>
 
-<style scoped>
-.operations-page {
-  width: 100%;
-  min-height: 100vh;
-  background-color: #f4f5f7;
-  box-sizing: border-box;
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 30px;
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.header-back-link {
-  text-decoration: none;
-  color: #4e48eb;
-  font-size: 16px;
-  font-weight: 500;
-  background-color: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.header-logo-img {
-  height: 45px;
-  width: auto;
-  display: block;
-}
-
-.header-user-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
-}
-
-.content-wrapper {
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 20px;
-  margin-top: 20px;
-  box-sizing: border-box;
-}
-
-.filter-bar {
-  color: #919191;
-  display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-
-  align-items: flex-start;
-}
-
-.sort-menu-wrapper {
-  position: relative;
-  z-index: 10;
-}
-
-.search-input-wrapper {
-  position: relative;
-  flex-grow: 1;
-  min-width: 250px;
-  z-index: 5;
-}
-
-.search-input {
-  padding: 10px 40px 10px 15px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 14px;
-  background-color: #fff;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.search-input::placeholder {
-  color: #c3c3cc;
-}
-
-.search-icon-svg {
-  color: #c3c3cc;
-  font-size: 16px;
-  display: block;
-}
-
-.search-icon-btn {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  background: transparent;
-  border: none;
-  margin: 0;
-  padding: 0 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.search-icon-btn:hover .search-icon-svg {
-  color: #4e48eb;
-}
-
-.filter-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 15px;
-  border-radius: 8px;
-  font-size: 14px;
-  border: 1px solid #d1d5db;
-  background-color: #fff;
-  color: #555;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.view-btn {
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  border: 1px solid #d1d5db;
-  background-color: #fff;
-  color: #374151;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  width: 100%;
-  height: calc(100% - 10px);
-}
-
-.filter-btn:hover,
-.view-btn:hover {
-  background: linear-gradient(to right, #4e48eb, #8b3ab3);
-  color: #fff;
-  border-color: transparent;
-}
-.filter-btn:hover .filter-icon-svg {
-  fill: #fff;
-}
-
-.sort-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 5px;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  width: 220px;
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-  box-sizing: border-box;
-}
-
-.sort-menu-item {
-  background: none;
-  border: none;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.sort-menu-item:hover {
-  background-color: #f5f5f5;
-}
-.sort-menu-item span {
-  font-size: 16px;
-  color: #4e48eb;
-}
-
-.table-container {
-  width: 100%;
-  max-height: 70vh;
-  overflow-y: auto;
-  overflow-x: auto;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  scrollbar-width: thin;
-  scrollbar-color: #8b3ab3 #f1f1f1;
-}
-
-.operations-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.operations-table th,
-.operations-table td {
-  padding: 12px 15px;
-  text-align: left;
-  font-size: 14px;
-  vertical-align: middle;
-  border-right: 1px solid #e0e0e0;
-}
-
-.operations-table th {
-  background-color: #fafafa;
-  font-weight: 600;
-  color: #6b7280;
-  font-size: 12px;
-  border-bottom: 2px solid #e0e0e0;
-  white-space: nowrap;
-}
-
-.operations-table th:last-child {
-  border-right: none;
-}
-
-.operations-table td {
-  border-top: 1px solid #e0e0e0;
-  color: #222;
-}
-
-.empty-table-cell {
-  text-align: center;
-  color: #999;
-  font-style: italic;
-  padding: 40px;
-}
-
-.action-cell-grouped {
-  background-color: #ffffff;
-  border-right: none;
-  display: table-cell;
-  vertical-align: middle;
-  text-align: center;
-}
-
-.conditions-cell {
-  min-width: 250px;
-  max-width: 350px;
-  white-space: normal;
-}
-
-.table-container::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-.table-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-.table-container::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #4e48eb, #8b3ab3);
-  border-radius: 10px;
-}
-.table-container::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #403bb1, #722f92);
-}
-
-.table-actions-bar {
-  display: flex;
-  gap: 15px;
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  flex-wrap: wrap;
-}
-
-.action-btn,
-label[for='file-upload'] {
-  padding: 5px 15px;
-  border-radius: 20px;
-  font-size: 12px;
-  border: 1px solid #d1d5db;
-  background-color: #fff;
-  color: #374151;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-block;
-  line-height: normal;
-}
-
-.action-btn:hover,
-label[for='file-upload']:hover {
-  background: linear-gradient(to right, #4e48eb, #8b3ab3);
-  color: #fff;
-  border-color: transparent;
-  opacity: 1;
-}
-
-#file-upload {
-  display: none;
-}
-
-.table-input {
-  width: 100%;
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 8px;
-  margin: -8px -9px;
-  box-sizing: border-box;
-  font-size: 14px;
-  font-family: inherit;
-  color: inherit;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-.table-input:hover {
-  border-color: #ddd;
-}
-.table-input:focus {
-  outline: 2px solid #4e48eb;
-  border-color: #4e48eb;
-  background: #fff;
-}
-.table-input-number {
-  text-align: right;
-  -moz-appearance: textfield;
-}
-.table-input-number::-webkit-outer-spin-button,
-.table-input-number::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-/* адаптив */
-
-@media (max-width: 768px) {
-  .app-header {
-    padding: 10px 15px;
-  }
-  .content-wrapper {
-    padding: 15px;
-    margin-top: 10px;
-  }
-}
-
-@media (max-width: 640px) {
-  .header-logo-img {
-    height: 35px;
-  }
-  .header-back-link {
-    font-size: 14px;
-  }
-  .header-user-icon {
-    width: 32px;
-    height: 32px;
-  }
-
-  .filter-bar {
-    gap: 10px;
-  }
-
-  .sort-menu-wrapper {
-    width: 100%;
-    order: -1;
-  }
-  .filter-btn {
-    width: 100%;
-    justify-content: center;
-  }
-  .sort-menu {
-    width: 100%;
-  }
-  .search-input-wrapper {
-    width: 100%;
-    min-width: unset;
-  }
-
-  .table-actions-bar {
-    flex-direction: column;
-    gap: 10px;
-  }
-  .action-btn,
-  label[for='file-upload'] {
-    width: 100%;
-    text-align: center;
-    padding: 10px 15px;
-    box-sizing: border-box;
-  }
-}
-</style>
