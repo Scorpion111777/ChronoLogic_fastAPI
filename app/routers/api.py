@@ -4,7 +4,7 @@ import time
 from fastapi import APIRouter, UploadFile, Form
 from fastapi.responses import JSONResponse
 import json
-from app.core.algorithm import  process_fixed_operations
+from core.algorithm import  process_fixed_operations
 import math
 
 router = APIRouter(prefix="/api", tags=["API"])
