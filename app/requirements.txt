@@ -3,5 +3,6 @@ uvicorn
 pandas
 python-multipart
 pytest
+pytest-mock
 python-dotenv
 pandas-stubs
