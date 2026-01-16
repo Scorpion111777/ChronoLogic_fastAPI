@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import OperationsView from '../views/OperationsView.vue'
-
+import ProfileOperations from '../views/ProfileOperations.vue'
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -10,11 +11,15 @@ const router = createRouter({
       name: 'home',
       component: OperationsView
     },
-    // 2. Додаємо шлях для вашої сторінки
     {
       path: '/operations',
       name: 'operations',
       component: OperationsView
+    },
+    {
+      path: '/profileOper',
+      name: 'profileOperations',
+      component: ProfileOperations
     }
   ]
 })

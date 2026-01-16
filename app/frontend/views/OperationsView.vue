@@ -168,39 +168,6 @@ function setSort(key) {
   isSortMenuOpen.value = false
 }
 
-
-
-function parseCombinedCSV(text) {
-  const lines = text.trim().split('\n').map(l => l.trim())
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-
-  const workerRows = []
-  const operationRows = []
-
-  lines.slice(1).forEach(line => {
-    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
-    const row = {}
-    headers.forEach((h, i) => row[h] = values[i] || '')
-
-    if (row['Назва технологічної операції']?.includes('ВСЬОГО ДЛЯ РОБІТНИКА')) {
-      // Робітник: Блок, Робітник, Розряд, Обладнання
-      const id = row['Робітник'] || `w-${crypto.randomUUID().slice(0,4)}`
-      workerRows.push({
-        id,
-        grade: parseInt(row['Розряд']) || 1,
-        equipment: (row['Обладнання'] || '').trim()
-      })
-    } else if (row['№ п/п'] && row['№ тех.оп.']) {
-      operationRows.push(row)
-    }
-  })
-
-  return { workers: workerRows, operations: operationRows }
-}
-
-
-
-
 // csv таблиця
 // Повністю видаліть вашу стару функцію parseCombinedCSV
 // ...
@@ -306,6 +273,16 @@ function addNewRow() {
     conditions: '',
     worker: '',
   })
+}
+
+
+function countTime(group){
+  const targetWorker = group.op.worker;
+  const workerOps = operations.value.filter(op => op.worker === targetWorker);
+  const totalTime = workerOps.reduce((sum, op) => {
+     return sum + (Number(op.time)||0)
+  },0)
+  alert(`Виконавець: ${targetWorker}\nВсього операцій: ${workerOps.length}\nЗагальний час: ${totalTime.toFixed(2)} хв`);
 }
 </script>
 // головна сторінка
@@ -431,7 +408,7 @@ function addNewRow() {
                   <input v-model="group.op.worker" class="table-input" />
                 </td>
 
-                <td v-if="group.isGroupStart" :rowspan="group.rowspan" class="action-cell-grouped">
+                <td v-if="group.isGroupStart" :rowspan="group.rowspan" class="action-cell-grouped" @click="countTime(group)">
                   <button class="view-btn">Переглянути</button>
                 </td>
               </tr>
