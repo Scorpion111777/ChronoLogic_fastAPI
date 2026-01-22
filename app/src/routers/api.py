@@ -1,15 +1,10 @@
-import os
-import time
-
-from fastapi import APIRouter, UploadFile, Form
+from fastapi import APIRouter, UploadFile
 from fastapi.responses import JSONResponse
-import json
-from app.core.algorithm import  process_fixed_operations
-import math
+from src.core.algorithm import  process_fixed_operations
 
 router = APIRouter(prefix="/api", tags=["API"])
 
-@router.options("/process")
+@router.options("/configuration")
 async def options_process():
     return JSONResponse(content={}, headers={
         "Access-Control-Allow-Origin": "http://localhost:5173",
