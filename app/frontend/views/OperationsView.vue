@@ -5,159 +5,72 @@ import SearchIcon from '../assets/icons/SearchIcon.vue'
 import Papa from 'papaparse'
 import './styles/OperationsViewStyles.css'
 import fetchExportToCSV from '../request/importCSV.js'
+
 const operations = ref([])
-const workers = ref([])
 
-
-// логіка пошуку
+// пошук / сортування
 const searchQuery = ref('')
 const isSortMenuOpen = ref(false)
 const sortConfig = ref({ key: 'worker', direction: 'asc' })
 
-// логіка кольорів
+// кольори по робітнику
 const colorPalette = [
-  '#FF6B6B',
-  '#54D6B1',
-  '#6B9AFF',
-  '#F7D154',
-  '#B36BFF',
-  '#FF6BF1',
-  '#FF936B',
-  '#4CE0E0',
-  '#FF8A80',
-  '#FFB080',
-  '#B0FF80',
-  '#80B0FF',
-  '#B080FF',
-  '#FF80FF',
-  '#9BF6FF',
-  '#A0C4FF',
+  '#FF6B6B','#54D6B1','#6B9AFF','#F7D154','#B36BFF',
+  '#FF6BF1','#FF936B','#4CE0E0','#FF8A80','#FFB080',
+  '#B0FF80','#80B0FF','#B080FF','#FF80FF','#9BF6FF','#A0C4FF',
 ]
 const workerColorMap = computed(() => {
   const map = new Map()
   const uniqueWorkers = [...new Set(operations.value.map((op) => op.worker))]
-  uniqueWorkers.forEach((workerName, index) => {
-    const color = colorPalette[index % colorPalette.length]
-    map.set(workerName, color)
-  })
+  uniqueWorkers.forEach((w, i) => map.set(w, colorPalette[i % colorPalette.length]))
   return map
 })
-function getWorkerColor(workerName) {
-  return workerColorMap.value.get(workerName) || '#FFFFFF'
-}
-function getRowStyle(workerName) {
-  const color = getWorkerColor(workerName)
-  return { backgroundColor: `${color}AA` }
-}
+function getWorkerColor(w) { return workerColorMap.value.get(w) || '#FFFFFF' }
+function getRowStyle(w) { return { backgroundColor: `${getWorkerColor(w)}AA` } }
+
+// фільтр
+const filteredOperations = computed(() => {
+  const q = searchQuery.value.toLowerCase()
+  if (!q) return operations.value
+  return operations.value.filter(op =>
+    ['block','worker','num','name','equipment','conditions'].some(k =>
+      op[k] && String(op[k]).toLowerCase().includes(q)
+    )
+  )
+})
 
 // сортування
-
-const filteredOperations = computed(() => {
-  let result = operations.value
-  const query = searchQuery.value.toLowerCase()
-  if (query) {
-    result = result.filter(
-      (op) =>
-        (op.name && op.name.toLowerCase().includes(query)) ||
-        (op.num && op.num.toLowerCase().includes(query)) ||
-        (op.worker && op.worker.toLowerCase().includes(query)) ||
-        (op.equipment && op.equipment.toLowerCase().includes(query)) ||
-        (op.conditions && op.conditions.toLowerCase().includes(query)),
-    )
-  }
-  return result
-})
-
 const sortedOperations = computed(() => {
   const { key, direction } = sortConfig.value
-  const sortable = [...filteredOperations.value]
-
-  sortable.sort((a, b) => {
-    let valA = a[key]
-    let valB = b[key]
-
-    let result = 0
-    if (typeof valA === 'string') {
-      result = valA.localeCompare(valB)
-    } else {
-      valA = valA || 0
-      valB = valB || 0
-      result = valA - valB
-    }
-
-    return direction === 'asc' ? result : -result
+  return [...filteredOperations.value].sort((a, b) => {
+    let vA = a[key], vB = b[key]
+    let r = typeof vA === 'string' ? vA.localeCompare(vB) : (vA||0) - (vB||0)
+    return direction === 'asc' ? r : -r
   })
-
-  return sortable
 })
 
+// групування по робітнику
 const groupedOperations = computed(() => {
-  const result = []
-
-  if (sortedOperations.value.length === 0) {
-    return result
-  }
-
-  for (let i = 0; i < sortedOperations.value.length; i++) {
-    const currentOp = sortedOperations.value[i]
-    const isGroupStart = i === 0 || sortedOperations.value[i - 1].worker !== currentOp.worker
-
-    if (isGroupStart) {
-      let rowspan = 1
-      for (let j = i + 1; j < sortedOperations.value.length; j++) {
-        if (sortedOperations.value[j].worker === currentOp.worker) {
-          rowspan++
-        } else {
-          break
-        }
-      }
-      result.push({
-        op: currentOp,
-        isGroupStart: true,
-        rowspan: rowspan,
-      })
-    } else {
-      result.push({
-        op: currentOp,
-        isGroupStart: false,
-        rowspan: 0,
-      })
+  const ops = sortedOperations.value
+  return ops.map((op, i) => {
+    const isStart = i === 0 || ops[i - 1].worker !== op.worker
+    let rowspan = 0
+    if (isStart) {
+      rowspan = 1
+      for (let j = i + 1; j < ops.length && ops[j].worker === op.worker; j++) rowspan++
     }
-  }
-  return result
+    return { op, isGroupStart: isStart, rowspan }
+  })
 })
 
 const getSortLabel = computed(() => {
   const { key, direction } = sortConfig.value
-
-  const dirArrow = direction === 'asc' ? '↑' : '↓'
-  let dirLabel = ''
-  if (key === 'worker') {
-    dirLabel = direction === 'asc' ? 'А-Я / ↑' : 'Я-А / ↓'
-  } else {
-    dirLabel = `${dirArrow}`
-  }
-
-  switch (key) {
-    case 'worker':
-      return `Сорт: Виконавець ${dirLabel}`
-    case 'time':
-      return `Сорт: Час ${dirLabel}`
-    case 'rank':
-      return `Сорт: Розряд ${dirLabel}`
-    case 'num':
-      return `Сорт: № Операції ${dirLabel}`
-    default:
-      return 'Сортування'
-  }
+  const arrow = direction === 'asc' ? '↑' : '↓'
+  const labels = { block: 'Блок', worker: 'Виконавець', time: 'Час', rank: 'Розряд', num: '№ Операції' }
+  return `Сорт: ${labels[key] || key} ${arrow}`
 })
 
-// обробники подій
-function goBack() {
-  window.history.back()
-}
-
-//сортування
+function goBack() { window.history.back() }
 function setSort(key) {
   if (sortConfig.value.key === key) {
     sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
@@ -168,131 +81,82 @@ function setSort(key) {
   isSortMenuOpen.value = false
 }
 
-// csv таблиця
-// Повністю видаліть вашу стару функцію parseCombinedCSV
-// ...
-
-// Замініть вашу стару функцію handleFileUpload на цю:
+// завантаження CSV
 async function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file || !file.name.endsWith('.csv')) {
     alert('Завантажуйте лише CSV-файл!')
     return
   }
-
   try {
-    // Відправляємо тільки файл — бекенд сам розбере робітників і все інше
-    const result = await fetchExportToCSV(file, []) // другий параметр порожній або можна взагалі прибрати в fetchExportToCSV
-
+    const result = await fetchExportToCSV(file)
     if (!result.success || !Array.isArray(result.data)) {
       throw new Error(result.error || 'Помилка обробки на сервері')
     }
-
-    // Заповнюємо таблицю з готового JSON від бекенду
     operations.value = result.data.map(row => ({
       id: crypto.randomUUID(),
-      num: row['№ тех.оп.'] || '',
-      name: row['Назва технологічної операції'] || '',
-      time: row['Затрати часу, хв'] || 0,
-      rank: row['Розряд'] || 4,
-      equipment: row['Обладнання'] || '',
+      block:      row['Блок'] || '',
+      worker:     row['Робітник'] || '',
+      rank:       row['Розряд'] || 0,
+      equipment:  row['Обладнання'] || '',
+      num:        row['№ п/п'] || '',
+      techNum:    row['№ тех.оп.'] || '',
+      name:       row['Назва технологічної операції'] || '',
+      time:       row['Затрати часу, хв'] || 0,
       conditions: row['Технічні умови'] || '',
-      worker: row['Робітник'] || '',
     }))
-
-    // Оновлюємо workers (якщо треба для кольорів і групування)
-    const uniqueWorkers = [...new Set(result.data.map(r => r['Робітник']).filter(Boolean))]
-    workers.value = uniqueWorkers.map((id, i) => ({
-      id: String(id),
-      grade: 4,
-      equipment: ''
-    }))
-
-
-    // Автозавантаження
-    const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8-sig' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'result.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-
   } catch (err) {
     alert('Помилка: ' + (err.message || 'Не вдалося обробити файл'))
     console.error(err)
   }
 }
 
+// експорт CSV
 function exportToCSV() {
-  if (operations.value.length === 0) {
-    alert('Немає даних для експорту!')
-    return
-  }
-
-  const dataToExport = operations.value.map((op, index) => {
-    return {
-      'Робітник': op.worker || '',
-      'Розряд': op.rank || '',
-      'Обладнання': op.equipment || '',
-      '№ п/п': index + 1,
-      '№ тех.оп.': op.num || '',
-      'Назва технологічної операції': op.name || '',
-      'Затрати часу, хв': op.time || 0,
-      'Технічні умови': op.conditions || ''
-    }
-  })
-
-  const csv = Papa.unparse(dataToExport, {
-    header: true,
-    quotes: true,
-  })
-
+  if (operations.value.length === 0) { alert('Немає даних для експорту!'); return }
+  const data = operations.value.map((op, i) => ({
+    'Блок':                          op.block || '',
+    'Робітник':                      op.worker || '',
+    'Розряд':                        op.rank || '',
+    'Обладнання':                    op.equipment || '',
+    '№ п/п':                         i + 1,
+    '№ тех.оп.':                     op.techNum || '',
+    'Назва технологічної операції':  op.name || '',
+    'Затрати часу, хв':              op.time || 0,
+    'Технічні умови':                op.conditions || '',
+  }))
+  const csv = Papa.unparse(data, { header: true, quotes: true })
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-
-  const link = document.createElement('a')
-  const url = URL.createObjectURL(blob)
-  link.setAttribute('href', url)
-  link.setAttribute('download', 'operations_export.csv')
-  link.style.visibility = 'hidden'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'operations_export.csv'
+  a.style.visibility = 'hidden'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
-
 
 function addNewRow() {
   operations.value.push({
     id: crypto.randomUUID(),
-    num: '',
-    name: '',
-    time: null,
-    rank: null,
-    equipment: '',
-    conditions: '',
-    worker: '',
+    block: '', worker: '', rank: null, equipment: '',
+    num: '', techNum: '', name: '', time: null, conditions: '',
   })
 }
 
-
-function countTime(group){
-  const targetWorker = group.op.worker;
-  const workerOps = operations.value.filter(op => op.worker === targetWorker);
-  const totalTime = workerOps.reduce((sum, op) => {
-     return sum + (Number(op.time)||0)
-  },0)
-  alert(`Виконавець: ${targetWorker}\nВсього операцій: ${workerOps.length}\nЗагальний час: ${totalTime.toFixed(2)} хв`);
+function countTime(group) {
+  const w = group.op.worker
+  const workerOps = operations.value.filter(op => op.worker === w)
+  const total = workerOps.reduce((s, op) => s + (Number(op.time) || 0), 0)
+  alert(`Виконавець: ${w}\nВсього операцій: ${workerOps.length}\nЗагальний час: ${total.toFixed(2)} хв`)
 }
 </script>
-// головна сторінка
+
 <template>
   <main class="operations-page">
     <header class="app-header">
       <button @click="goBack" class="header-back-link">← Назад</button>
-
       <img src="../assets/icons/logo.svg" alt="Chronologic Logo" class="header-logo-img" />
-
       <div class="header-user-icon"></div>
     </header>
 
@@ -302,45 +166,17 @@ function countTime(group){
           <button @click="isSortMenuOpen = !isSortMenuOpen" class="filter-btn">
             {{ getSortLabel }} <FilterIcon />
           </button>
-
           <div v-if="isSortMenuOpen" class="sort-menu">
-            <button @click="setSort('worker')" class="sort-menu-item">
-              За Виконавцем
-              <span v-if="sortConfig.key === 'worker'">{{
-                sortConfig.direction === 'asc' ? '↑' : '↓'
-              }}</span>
-            </button>
-            <button @click="setSort('time')" class="sort-menu-item">
-              За Часом
-              <span v-if="sortConfig.key === 'time'">{{
-                sortConfig.direction === 'asc' ? '↑' : '↓'
-              }}</span>
-            </button>
-            <button @click="setSort('rank')" class="sort-menu-item">
-              За Розрядом
-              <span v-if="sortConfig.key === 'rank'">{{
-                sortConfig.direction === 'asc' ? '↑' : '↓'
-              }}</span>
-            </button>
-            <button @click="setSort('num')" class="sort-menu-item">
-              За № Операції
-              <span v-if="sortConfig.key === 'num'">{{
-                sortConfig.direction === 'asc' ? '↑' : '↓'
-              }}</span>
-            </button>
+            <button @click="setSort('block')"  class="sort-menu-item">За Блоком   <span v-if="sortConfig.key==='block'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
+            <button @click="setSort('worker')" class="sort-menu-item">За Виконавцем <span v-if="sortConfig.key==='worker'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
+            <button @click="setSort('time')"   class="sort-menu-item">За Часом    <span v-if="sortConfig.key==='time'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
+            <button @click="setSort('rank')"   class="sort-menu-item">За Розрядом <span v-if="sortConfig.key==='rank'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
+            <button @click="setSort('num')"    class="sort-menu-item">За № Операції <span v-if="sortConfig.key==='num'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
           </div>
         </div>
-
         <div class="search-input-wrapper">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search all fields..."
-            class="search-input"
-          />
-          <button class="search-icon-btn" aria-label="Пошук">
-            <SearchIcon class="search-icon-svg" />
-          </button>
+          <input v-model="searchQuery" type="text" placeholder="Search all fields..." class="search-input" />
+          <button class="search-icon-btn" aria-label="Пошук"><SearchIcon class="search-icon-svg" /></button>
         </div>
       </div>
 
@@ -348,66 +184,35 @@ function countTime(group){
         <table class="operations-table">
           <thead>
             <tr>
-              <th>№</th>
-              <th>№ Тех. операції</th>
-              <th>Назва технологічної операції</th>
-              <th>Затрати часу, хв</th>
+              <th>Блок</th>
+              <th>Виконавець</th>
               <th>Розряд</th>
               <th>Обладнання</th>
+              <th>№ п/п</th>
+              <th>№ тех.оп.</th>
+              <th>Назва технологічної операції</th>
+              <th>Затрати часу, хв</th>
               <th>Технічні умови</th>
-              <th>Виконавець</th>
               <th></th>
             </tr>
           </thead>
-
           <tbody>
             <tr v-if="groupedOperations.length === 0">
-              <td :colspan="9" class="empty-table-cell">
+              <td :colspan="10" class="empty-table-cell">
                 Не знайдено жодних операцій. Спробуйте змінити фільтри або завантажити CSV.
               </td>
             </tr>
             <template v-for="(group, index) in groupedOperations" :key="group.op.id">
               <tr :style="getRowStyle(group.op.worker)">
-                <td>{{ index + 1 }}</td>
-
-                <td>
-                  <input v-model="group.op.num" class="table-input" />
-                </td>
-
-                <td>
-                  <input v-model="group.op.name" class="table-input" />
-                </td>
-
-                <td>
-                  <input
-                    v-model.number="group.op.time"
-                    type="number"
-                    step="0.1"
-                    class="table-input table-input-number"
-                  />
-                </td>
-
-                <td>
-                  <input
-                    v-model.number="group.op.rank"
-                    type="number"
-                    step="1"
-                    class="table-input table-input-number"
-                  />
-                </td>
-
-                <td>
-                  <input v-model="group.op.equipment" class="table-input" />
-                </td>
-
-                <td class="conditions-cell">
-                  <input v-model="group.op.conditions" class="table-input" />
-                </td>
-
-                <td>
-                  <input v-model="group.op.worker" class="table-input" />
-                </td>
-
+                <td><input v-model="group.op.block"      class="table-input" /></td>
+                <td><input v-model="group.op.worker"     class="table-input" /></td>
+                <td><input v-model.number="group.op.rank" type="number" step="1" class="table-input table-input-number" /></td>
+                <td><input v-model="group.op.equipment"  class="table-input" /></td>
+                <td><input v-model="group.op.num"        class="table-input" /></td>
+                <td><input v-model="group.op.techNum"    class="table-input" /></td>
+                <td><input v-model="group.op.name"       class="table-input" /></td>
+                <td><input v-model.number="group.op.time" type="number" step="0.1" class="table-input table-input-number" /></td>
+                <td><input v-model="group.op.conditions" class="table-input" /></td>
                 <td v-if="group.isGroupStart" :rowspan="group.rowspan" class="action-cell-grouped" @click="countTime(group)">
                   <button class="view-btn">Переглянути</button>
                 </td>
@@ -418,14 +223,11 @@ function countTime(group){
       </div>
 
       <div class="table-actions-bar">
-        <label for="file-upload" class="action-btn"> Завантажити CSV </label>
+        <label for="file-upload" class="action-btn">Завантажити CSV</label>
         <input id="file-upload" type="file" @change="handleFileUpload" accept=".csv" />
-
-        <button @click="addNewRow" class="action-btn">Додати рядок</button>
-
+        <button @click="addNewRow"   class="action-btn">Додати рядок</button>
         <button @click="exportToCSV" class="action-btn export-btn">Експорт / Зберегти</button>
       </div>
     </div>
   </main>
 </template>
-

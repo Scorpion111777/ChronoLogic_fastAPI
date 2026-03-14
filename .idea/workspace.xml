@@ -6,7 +6,37 @@
   <component name="ChangeListManager">
     <list default="true" id="5cdc849c-776c-4be7-86ca-e60f5af12483" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/app/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/App.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/App.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/__tests__/App.spec.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/__tests__/App.spec.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/assets/base.css" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/assets/base.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/assets/icons/FilterIcon.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/assets/icons/FilterIcon.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/assets/icons/SearchIcon.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/assets/icons/SearchIcon.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/assets/icons/logo.svg" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/assets/icons/logo.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/assets/main.css" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/assets/main.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/jsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/jsconfig.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/main.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/request/importCSV.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/request/importCSV.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/router/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/router/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/stores/counter.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/stores/counter.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/views/ProfileOperations.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/ProfileOperations.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/views/styles/OperationsViewStyles.css" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/styles/OperationsViewStyles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/vite.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/vite.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/vitest.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/vitest.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/app/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/pytest.ini" beforeDir="false" afterPath="$PROJECT_DIR$/app/pytest.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/app/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/run.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/core/algorithm.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/core/algorithm.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/routers/api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/routers/api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/utils/file_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/utils/file_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/tests/test_real_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/tests/test_real_data.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,6 +55,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Scorpion111777&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Scorpion111777/ChronoLogic_fastAPI.git&quot;,
+    &quot;accountId&quot;: &quot;a0568caf-848c-4dee-a615-3fc3858d8d78&quot;
+  }
+}</component>
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="CurrentFile" />
   </component>
@@ -45,9 +87,13 @@
     &quot;Python.main.executor&quot;: &quot;Debug&quot;,
     &quot;Python.run.executor&quot;: &quot;Debug&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
     &quot;disable.download.node.interpreter.editor.notification&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;viktor/feature/init-vue&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;D:/ChronologicBackend/ChronoLogic_fastAPI&quot;,
     &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
@@ -78,13 +124,13 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="SDK_NAME" value="Python 3.13 (projects)" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../../Projects/EarthSaverAI/ChronoLogic_fastAPI/pythonProject/app/main.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../EarthSaverAI/ChronoLogic_fastAPI/pythonProject/app/main.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -102,12 +148,12 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="SDK_NAME" value="Python 3.13" />
       <option name="WORKING_DIRECTORY" value="" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/app/run.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
@@ -125,8 +171,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-6a121458b545-JavaScript-PY-251.25410.159" />
-        <option value="bundled-python-sdk-e0ed3721d81e-36ea0e71a18c-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.25410.159" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.31033.139" />
+        <option value="bundled-python-sdk-2653e85de345-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.31033.139" />
       </set>
     </attachedChunks>
   </component>
@@ -153,6 +199,8 @@
       <workItem from="1763455972287" duration="904000" />
       <workItem from="1763469993756" duration="741000" />
       <workItem from="1763485503910" duration="380000" />
+      <workItem from="1773523918346" duration="862000" />
+      <workItem from="1773524860190" duration="1894000" />
     </task>
     <servers />
   </component>
