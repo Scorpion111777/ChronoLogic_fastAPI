@@ -397,3 +397,48 @@ label[for='file-upload']:hover {
     box-sizing: border-box;
   }
 }
+/* ── Full-screen laptop optimizations ─────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .operations-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .content-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 24px;
+    margin-top: 0;
+    max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #8b3ab3 #f1f1f1;
+  }
+  .table-container {
+    max-height: calc(100vh - 380px);
+  }
+}
+
+@media (min-width: 1440px) {
+  .content-wrapper { padding: 20px 32px; }
+  .table-container { max-height: calc(100vh - 360px); }
+}
+
+/* ── Mobile improvements ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .app-header { padding: 10px 16px; }
+  .content-wrapper { padding: 12px 16px; margin-top: 0; }
+  .upload-panel { padding: 14px; }
+  .operations-table th,
+  .operations-table td { padding: 8px 10px; font-size: 13px; }
+  .table-container { border-radius: 8px; }
+}
+
+@media (max-width: 480px) {
+  .filter-bar { gap: 8px; }
+  .table-actions-bar { padding: 10px; gap: 8px; }
+  .action-btn { width: 100%; text-align: center; padding: 10px; }
+  .result-stats { gap: 10px; }
+  .result-stat__n { font-size: 18px; }
+}
