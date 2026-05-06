@@ -80,7 +80,7 @@ function goToApp() {
             </div>
             <div class="hero-stat-sep"></div>
             <div class="hero-stat">
-              <span class="hero-stat__n">8</span>
+              <span class="hero-stat__n">5</span>
               <span class="hero-stat__l">Розрядів</span>
             </div>
           </div>

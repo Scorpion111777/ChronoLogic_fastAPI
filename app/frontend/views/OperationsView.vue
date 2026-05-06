@@ -205,7 +205,6 @@ function exportToCSV() {
     'Блок': op.block || '',
     'Робітник': op.worker || '',
     'Розряд': op.rank || '',
-    'Обладнання': op.equipment || '',
     '№ п/п': i + 1,
     '№ тех.оп.': op.techNum || '',
     'Назва технологічної операції': op.name || '',
@@ -429,7 +428,6 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
               <th>Блок</th>
               <th>Виконавець</th>
               <th>Розряд</th>
-              <th>Обладнання</th>
               <th>№ п/п</th>
               <th>№ тех.оп.</th>
               <th>Назва технологічної операції</th>
@@ -441,7 +439,7 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
           </thead>
           <tbody>
             <tr v-if="groupedOperations.length === 0">
-              <td :colspan="11" class="empty-table-cell">
+              <td :colspan="10" class="empty-table-cell">
                 Немає операцій. Завантажте CSV або додайте рядок.
               </td>
             </tr>
@@ -449,8 +447,7 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
               <tr :style="getRowStyle(group.op.worker)">
                 <td><input v-model="group.op.block"       class="table-input" /></td>
                 <td><input v-model="group.op.worker"      class="table-input" /></td>
-                <td><input v-model.number="group.op.rank" type="number" step="1" class="table-input table-input-number" /></td>
-                <td><input v-model="group.op.equipment"   class="table-input" /></td>
+                <td><select v-model.number="group.op.rank" class="table-input"><option v-for="n in 5" :key="n" :value="n">{{ n }}</option></select></td>
                 <td><input v-model="group.op.num"         class="table-input" /></td>
                 <td><input v-model="group.op.techNum"     class="table-input" /></td>
                 <td><input v-model="group.op.name"        class="table-input" /></td>

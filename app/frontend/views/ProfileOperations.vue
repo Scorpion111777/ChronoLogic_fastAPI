@@ -112,10 +112,10 @@ const rankCounts = computed(() => {
             <label>Тип обладнання</label>
             <input v-model="newWorker.equipment_type" type="text" placeholder="ВТО" class="form-input" />
           </div>
-          <div class="form-group">
-            <label>Кількість обладнання</label>
-            <input v-model.number="newWorker.equipment_quantity" type="number" min="1" class="form-input" />
-          </div>
+          <!--<div class="form-group">-->
+            <!--<label>Кількість обладнання</label>-->
+            <!--<input v-model.number="newWorker.equipment_quantity" type="number" min="1" class="form-input" />-->
+          <!--</div>-->
         </div>
         <button @click="addWorker" class="save-btn">Зберегти</button>
       </div>
