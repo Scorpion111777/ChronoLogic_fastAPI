@@ -2,10 +2,12 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useLocaleStore } from '../stores/locale.js'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const { t, toggleLocale, isEN } = useLocaleStore()
 
 const isLogin = computed(() => route.name === 'login')
 const name = ref('')
@@ -19,14 +21,14 @@ const showPass = ref(false)
 async function submit() {
   error.value = ''
   loading.value = true
-  await new Promise(r => setTimeout(r, 300)) // simulate async
+  await new Promise(r => setTimeout(r, 300))
 
   if (isLogin.value) {
     const res = authStore.login(email.value, password.value)
     if (!res.success) { error.value = res.error; loading.value = false; return }
   } else {
-    if (!name.value.trim()) { error.value = "Введіть ваше ім'я"; loading.value = false; return }
-    if (password.value !== passwordConfirm.value) { error.value = 'Паролі не збігаються'; loading.value = false; return }
+    if (!name.value.trim()) { error.value = t('auth.nameError'); loading.value = false; return }
+    if (password.value !== passwordConfirm.value) { error.value = t('auth.passwordMismatch'); loading.value = false; return }
     const res = authStore.register(name.value, email.value, password.value)
     if (!res.success) { error.value = res.error; loading.value = false; return }
   }
@@ -34,6 +36,14 @@ async function submit() {
   loading.value = false
   router.push('/operations')
 }
+
+const authErrorText = computed(() => {
+  if (!error.value) return ''
+  if (error.value === 'Користувач з таким email вже існує') return t('auth.userExists')
+  if (error.value === 'Пароль має бути не менше 6 символів') return t('auth.passwordShort')
+  if (error.value === 'Невірний email або пароль') return t('auth.invalidCredentials')
+  return error.value
+})
 </script>
 
 <template>
@@ -45,33 +55,38 @@ async function submit() {
     </div>
 
     <div class="auth-card">
-      <button @click="router.push('/')" class="back-link">← Назад</button>
+      <div class="auth-top-row">
+        <button @click="router.push('/')" class="back-link">{{ t('nav.back') }}</button>
+        <button class="lang-toggle" @click="toggleLocale" :title="isEN ? 'Українська' : 'English'">
+          {{ isEN ? 'UA' : 'EN' }}
+        </button>
+      </div>
 
       <div class="auth-logo-wrap">
         <img src="../assets/icons/logo.svg" alt="ChronoLogic" class="auth-logo" />
       </div>
 
-      <h1 class="auth-title">{{ isLogin ? 'Увійти в акаунт' : 'Створити акаунт' }}</h1>
+      <h1 class="auth-title">{{ isLogin ? t('auth.loginTitle') : t('auth.registerTitle') }}</h1>
       <p class="auth-sub">
-        {{ isLogin ? 'Ласкаво просимо назад!' : 'Приєднуйтесь до ChronoLogic' }}
+        {{ isLogin ? t('auth.loginSub') : t('auth.registerSub') }}
       </p>
 
       <form @submit.prevent="submit" class="auth-form">
         <div v-if="!isLogin" class="form-field">
-          <label>Ім'я та прізвище</label>
-          <input v-model="name" type="text" placeholder="Іванов Іван" class="auth-input" required />
+          <label>{{ t('auth.nameLabel') }}</label>
+          <input v-model="name" type="text" :placeholder="t('auth.namePlaceholder')" class="auth-input" required />
         </div>
 
         <div class="form-field">
           <label>Email</label>
-          <input v-model="email" type="email" placeholder="you@example.com" class="auth-input" required />
+          <input v-model="email" type="email" :placeholder="t('auth.emailPlaceholder')" class="auth-input" required />
         </div>
 
         <div class="form-field">
-          <label>Пароль</label>
+          <label>{{ t('auth.passwordLabel') }}</label>
           <div class="input-with-action">
             <input v-model="password" :type="showPass ? 'text' : 'password'"
-                   placeholder="Мінімум 6 символів" class="auth-input" required />
+                   :placeholder="t('auth.passwordPlaceholder')" class="auth-input" required />
             <button type="button" @click="showPass = !showPass" class="show-pass-btn">
               {{ showPass ? '🙈' : '👁' }}
             </button>
@@ -79,27 +94,27 @@ async function submit() {
         </div>
 
         <div v-if="!isLogin" class="form-field">
-          <label>Підтвердіть пароль</label>
+          <label>{{ t('auth.confirmLabel') }}</label>
           <input v-model="passwordConfirm" :type="showPass ? 'text' : 'password'"
-                 placeholder="Повторіть пароль" class="auth-input" required />
+                 :placeholder="t('auth.confirmPlaceholder')" class="auth-input" required />
         </div>
 
-        <p v-if="error" class="auth-error">{{ error }}</p>
+        <p v-if="authErrorText" class="auth-error">{{ authErrorText }}</p>
 
         <button type="submit" class="auth-submit" :disabled="loading">
           <span v-if="loading" class="spinner"></span>
-          <span v-else>{{ isLogin ? 'Увійти' : 'Зареєструватись' }}</span>
+          <span v-else>{{ isLogin ? t('auth.loginBtn') : t('auth.registerBtn') }}</span>
         </button>
       </form>
 
       <div class="auth-switch">
         <template v-if="isLogin">
-          Немає акаунту?
-          <button @click="router.push('/register')" class="switch-link">Зареєструватись</button>
+          {{ t('auth.noAccount') }}
+          <button @click="router.push('/register')" class="switch-link">{{ t('auth.registerLink') }}</button>
         </template>
         <template v-else>
-          Вже є акаунт?
-          <button @click="router.push('/login')" class="switch-link">Увійти</button>
+          {{ t('auth.hasAccount') }}
+          <button @click="router.push('/login')" class="switch-link">{{ t('auth.loginLink') }}</button>
         </template>
       </div>
     </div>
@@ -145,8 +160,26 @@ async function submit() {
   box-shadow: 0 24px 80px rgba(0,0,0,0.5);
 }
 
+.auth-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.lang-toggle {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+  background: transparent; color: #a0a8ff; font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: all .2s; font-family: 'Outfit', sans-serif;
+  letter-spacing: .5px;
+}
+.lang-toggle:hover {
+  background: rgba(80,71,229,0.3);
+  color: #fff;
+}
+
 .back-link {
-  display: inline-block; margin-bottom: 24px;
+  display: inline-block;
   background: none; border: none; color: #7070a0;
   font-size: 13px; cursor: pointer; padding: 0;
   font-family: 'Outfit', sans-serif;

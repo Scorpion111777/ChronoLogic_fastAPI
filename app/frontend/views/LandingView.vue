@@ -1,18 +1,28 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useLocaleStore } from '../stores/locale.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t, toggleLocale, isEN } = useLocaleStore()
 
-const features = [
-  { icon: '📂', title: 'Імпорт CSV', desc: 'Завантажуйте декілька файлів одночасно та автоматично розподіляйте операції між виконавцями.' },
-  { icon: '👷', title: 'Профілі робітників', desc: 'Налаштовуйте профілі з розрядами та обладнанням для точного планування робочого часу.' },
-  { icon: '⏱', title: 'Аналіз часу', desc: 'Детальна статистика витрат часу по кожному виконавцю з підтримкою кількох зразків.' },
-  { icon: '📊', title: 'Гнучке сортування', desc: 'Фільтруйте та сортуйте операції за будь-яким параметром — швидко та зручно.' },
-  { icon: '↓', title: 'Експорт результатів', desc: 'Вивантажуйте оброблені дані у CSV з повним збереженням структури та форматування.' },
-  { icon: '🔐', title: 'Акаунти користувачів', desc: 'Зберігайте налаштування профілів та зручно повертайтесь до роботи будь-коли.' },
+const features = computed(() => [
+  { icon: '📂', title: t('landing.feature1Title'), desc: t('landing.feature1Desc') },
+  { icon: '👷', title: t('landing.feature2Title'), desc: t('landing.feature2Desc') },
+  { icon: '⏱', title: t('landing.feature3Title'), desc: t('landing.feature3Desc') },
+  { icon: '📊', title: t('landing.feature4Title'), desc: t('landing.feature4Desc') },
+  { icon: '↓', title: t('landing.feature5Title'), desc: t('landing.feature5Desc') },
+  { icon: '🔐', title: t('landing.feature6Title'), desc: t('landing.feature6Desc') },
+])
+
+const previewRows = [
+  { worker: 'Іванов І.І.', rank: 4, time: '12.5 хв', color: '#6B9AFF' },
+  { worker: 'Петренко В.С.', rank: 3, time: '8.2 хв', color: '#54D6B1' },
+  { worker: 'Коваль О.М.', rank: 5, time: '15.0 хв', color: '#FF6B6B' },
+  { worker: 'Сидоренко П.І.', rank: 3, time: '9.7 хв', color: '#F7D154' },
+  { worker: 'Бойко А.В.', rank: 4, time: '11.3 хв', color: '#B36BFF' },
 ]
 
 function goToApp() {
@@ -31,13 +41,16 @@ function goToApp() {
       <div class="nav-inner">
         <img src="../assets/icons/logo_dark.png" alt="ChronoLogic" class="nav-logo" />
         <div class="nav-actions">
+          <button class="lang-toggle" @click="toggleLocale" :title="isEN ? 'Українська' : 'English'">
+            {{ isEN ? 'UA' : 'EN' }}
+          </button>
           <template v-if="authStore.isLoggedIn">
             <span class="nav-greeting">{{ authStore.username }}</span>
-            <button @click="router.push('/operations')" class="btn-primary">Відкрити застосунок</button>
+            <button @click="router.push('/operations')" class="btn-primary">{{ t('nav.openApp') }}</button>
           </template>
           <template v-else>
-            <button @click="router.push('/login')" class="btn-ghost">Увійти</button>
-            <button @click="router.push('/register')" class="btn-primary">Реєстрація</button>
+            <button @click="router.push('/login')" class="btn-ghost">{{ t('nav.login') }}</button>
+            <button @click="router.push('/register')" class="btn-primary">{{ t('nav.register') }}</button>
           </template>
         </div>
       </div>
@@ -54,34 +67,34 @@ function goToApp() {
       <div class="hero-content">
         <div class="hero-badge">
           <span class="badge-dot"></span>
-          Оптимізація технологічних процесів
+          {{ t('landing.badge') }}
         </div>
         <h1 class="hero-title">
-          Розподіл операцій<br />
-          <span class="hero-title-accent">з точністю до хвилини</span>
+          {{ t('landing.title1') }}<br />
+          <span class="hero-title-accent">{{ t('landing.title2') }}</span>
         </h1>
         <p class="hero-desc">
-          ChronoLogic автоматично аналізує технологічні операції, розподіляє навантаження між виконавцями та надає детальну статистику часу — все в зручному інтерфейсі.
+          {{ t('landing.desc') }}
         </p>
         <div class="hero-cta">
           <button @click="goToApp" class="btn-hero">
-            <span>Почати роботу</span>
+            <span>{{ authStore.isLoggedIn ? t('nav.openApp') : t('nav.start') }}</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
           <div class="hero-stats">
             <div class="hero-stat">
-              <span class="hero-stat__n">CSV</span>
-              <span class="hero-stat__l">Підтримка</span>
+              <span class="hero-stat__n">{{ t('landing.csv') }}</span>
+              <span class="hero-stat__l">{{ t('landing.csvLabel') }}</span>
             </div>
             <div class="hero-stat-sep"></div>
             <div class="hero-stat">
-              <span class="hero-stat__n">∞</span>
-              <span class="hero-stat__l">Файлів</span>
+              <span class="hero-stat__n">{{ t('landing.files') }}</span>
+              <span class="hero-stat__l">{{ t('landing.filesLabel') }}</span>
             </div>
             <div class="hero-stat-sep"></div>
             <div class="hero-stat">
-              <span class="hero-stat__n">5</span>
-              <span class="hero-stat__l">Розрядів</span>
+              <span class="hero-stat__n">{{ t('landing.ranks') }}</span>
+              <span class="hero-stat__l">{{ t('landing.ranksLabel') }}</span>
             </div>
           </div>
         </div>
@@ -97,21 +110,15 @@ function goToApp() {
             <span class="preview-title">operations.csv</span>
           </div>
           <div class="preview-rows">
-            <div class="preview-row" v-for="(item, i) in [
-              { worker: 'Іванов І.І.', rank: 4, time: '12.5 хв', color: '#6B9AFF' },
-              { worker: 'Петренко В.С.', rank: 3, time: '8.2 хв', color: '#54D6B1' },
-              { worker: 'Коваль О.М.', rank: 5, time: '15.0 хв', color: '#FF6B6B' },
-              { worker: 'Сидоренко П.І.', rank: 3, time: '9.7 хв', color: '#F7D154' },
-              { worker: 'Бойко А.В.', rank: 4, time: '11.3 хв', color: '#B36BFF' },
-            ]" :key="i" :style="{ '--row-color': item.color }">
+            <div class="preview-row" v-for="(item, i) in previewRows" :key="i" :style="{ '--row-color': item.color }">
               <span class="preview-color-dot"></span>
               <span class="preview-worker">{{ item.worker }}</span>
-              <span class="preview-rank">{{ item.rank }} розряд</span>
+              <span class="preview-rank">{{ t('landing.rankFormat', { n: item.rank }) }}</span>
               <span class="preview-time">{{ item.time }}</span>
             </div>
           </div>
           <div class="preview-footer">
-            <span class="preview-total">Загалом: 56.7 хв · 5 виконавців</span>
+            <span class="preview-total">{{ t('landing.previewTotal', { total: '56.7', n: 5 }) }}</span>
           </div>
         </div>
       </div>
@@ -120,8 +127,8 @@ function goToApp() {
     <!-- Features -->
     <section class="features">
       <div class="features-inner">
-        <h2 class="section-title">Все для вашого виробництва</h2>
-        <p class="section-desc">Інструменти для аналізу та оптимізації технологічних операцій</p>
+        <h2 class="section-title">{{ t('landing.sectionTitle') }}</h2>
+        <p class="section-desc">{{ t('landing.sectionDesc') }}</p>
         <div class="features-grid">
           <div class="feature-card" v-for="(f, i) in features" :key="i">
             <div class="feature-icon">{{ f.icon }}</div>
@@ -136,10 +143,10 @@ function goToApp() {
     <section class="cta-section">
       <div class="cta-inner">
         <img src="../assets/icons/logo_dark.png" alt="ChronoLogic" class="cta-logo" />
-        <h2 class="cta-title">Готові оптимізувати виробництво?</h2>
-        <p class="cta-desc">Реєстрація займає менше хвилини. Починайте аналізувати операції вже зараз.</p>
+        <h2 class="cta-title">{{ t('landing.ctaTitle') }}</h2>
+        <p class="cta-desc">{{ t('landing.ctaDesc') }}</p>
         <button @click="goToApp" class="btn-hero">
-          <span>{{ authStore.isLoggedIn ? 'Відкрити застосунок' : 'Почати безкоштовно' }}</span>
+          <span>{{ authStore.isLoggedIn ? t('nav.openApp') : t('nav.startFree') }}</span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
@@ -149,7 +156,7 @@ function goToApp() {
     <footer class="landing-footer">
       <div class="footer-inner">
         <img src="../assets/icons/logo_dark.png" alt="ChronoLogic" class="footer-logo" />
-        <span class="footer-copy">© 2026 ChronoLogic. Усі права захищено.</span>
+        <span class="footer-copy">{{ t('landing.footer') }}</span>
       </div>
     </footer>
   </div>
@@ -166,7 +173,17 @@ function goToApp() {
   overflow-x: hidden;
 }
 
-/* NAV */
+.lang-toggle {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+  background: transparent; color: #a0a8ff; font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: all .2s; font-family: 'Outfit', sans-serif;
+  letter-spacing: .5px;
+}
+.lang-toggle:hover {
+  background: rgba(80,71,229,0.3);
+  color: #fff;
+}
+
 .landing-nav {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -187,7 +204,6 @@ function goToApp() {
 .nav-actions { display: flex; align-items: center; gap: 12px; }
 .nav-greeting { font-size: 14px; color: #9090b0; }
 
-/* BUTTONS */
 .btn-ghost {
   padding: 9px 20px; border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.15);
@@ -220,7 +236,6 @@ function goToApp() {
 }
 .btn-hero:hover { transform: translateY(-2px); box-shadow: 0 0 60px rgba(80,71,229,0.55), 0 8px 30px rgba(0,0,0,0.3); }
 
-/* HERO */
 .hero {
   min-height: 100vh;
   display: flex;
@@ -291,10 +306,9 @@ function goToApp() {
 .hero-stats { display: flex; align-items: center; gap: 16px; }
 .hero-stat { display: flex; flex-direction: column; align-items: center; }
 .hero-stat__n { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; color: #c0c8ff; }
-.hero-stat__l { font-size: 11px; color: #5555778; color: #666688; }
+.hero-stat__l { font-size: 11px; color: #666688; }
 .hero-stat-sep { width: 1px; height: 32px; background: rgba(255,255,255,0.1); }
 
-/* Preview card */
 .hero-preview {
   flex: 0 0 400px;
   position: relative; z-index: 1;
@@ -346,7 +360,6 @@ function goToApp() {
 }
 .preview-total { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7070a0; }
 
-/* FEATURES */
 .features {
   padding: 80px 32px;
   background: rgba(255,255,255,0.02);
@@ -376,16 +389,14 @@ function goToApp() {
 }
 .feature-icon { font-size: 32px; margin-bottom: 14px; }
 .feature-title { font-size: 17px; font-weight: 700; color: #e0e0f0; margin: 0 0 8px; }
-.feature-desc { font-size: 14px; line-height: 1.6; color: #6666888; color: #7070a0; margin: 0; }
+.feature-desc { font-size: 14px; line-height: 1.6; color: #7070a0; margin: 0; }
 
-/* CTA */
 .cta-section { padding: 100px 32px; }
 .cta-inner { max-width: 600px; margin: 0 auto; text-align: center; }
 .cta-logo { height: 50px; margin-bottom: 28px; }
 .cta-title { font-size: 38px; font-weight: 800; color: #f0f0f8; margin: 0 0 14px; }
 .cta-desc { font-size: 16px; color: #7070a0; margin-bottom: 36px; line-height: 1.6; }
 
-/* FOOTER */
 .landing-footer {
   padding: 24px 32px;
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -397,7 +408,6 @@ function goToApp() {
 .footer-logo { height: 30px; opacity: 0.55; }
 .footer-copy { font-size: 13px; color: #444466; }
 
-/* MOBILE */
 @media (max-width: 900px) {
   .hero { flex-direction: column; padding: 100px 24px 60px; gap: 40px; }
   .hero-preview { flex: none; width: 100%; max-width: 400px; }

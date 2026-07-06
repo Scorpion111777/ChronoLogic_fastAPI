@@ -8,10 +8,12 @@ import './styles/OperationsViewStyles.css'
 import fetchExportToCSV, { fetchMultiProcess } from '../request/importCSV.js'
 import { useWorkersStore } from '../stores/workers.js'
 import { useAuthStore } from '../stores/auth.js'
+import { useLocaleStore } from '../stores/locale.js'
 
 const router = useRouter()
 const workersStore = useWorkersStore()
 const authStore = useAuthStore()
+const { t, toggleLocale, isEN } = useLocaleStore()
 
 function handleLogout() {
   authStore.logout()
@@ -22,20 +24,22 @@ const operations = ref([])
 const searchQuery = ref('')
 const isSortMenuOpen = ref(false)
 const sortConfig = ref({ key: 'worker', direction: 'asc' })
+const groupByEquipment = ref(false)
+const selectedIds = ref(new Set())
+const showSelectedOnly = ref(false)
+const selectAllChecked = ref(false)
 
-// ── Multi-file state ─────────────────────────────────────────────────────────
-// Each entry: { id, file, quantity }
+// Multi-file state
 const selectedFiles = ref([])
 const isProcessing = ref(false)
 
-// Total weighted quantity across all files (for summary display)
 const totalWeightedQuantity = computed(() =>
   selectedFiles.value.reduce((s, f) => s + (f.quantity || 1), 0)
 )
-const processingResult = ref(null) // last server response meta
+const processingResult = ref(null)
 const showResultPanel = ref(false)
 
-// ── Colors ───────────────────────────────────────────────────────────────────
+// Colors
 const colorPalette = [
   '#FF6B6B','#54D6B1','#6B9AFF','#F7D154','#B36BFF',
   '#FF6BF1','#FF936B','#4CE0E0','#FF8A80','#FFB080',
@@ -50,7 +54,23 @@ const workerColorMap = computed(() => {
 function getWorkerColor(w) { return workerColorMap.value.get(w) || '#FFFFFF' }
 function getRowStyle(w) { return { backgroundColor: `${getWorkerColor(w)}AA` } }
 
-// ── Filter / sort / group ────────────────────────────────────────────────────
+// Equipment color map
+const eqColorMap = computed(() => {
+  const map = new Map()
+  const unique = [...new Set(operations.value.map(op => op.equipment))]
+  unique.forEach((e, i) => map.set(e, colorPalette[i % colorPalette.length]))
+  return map
+})
+function getEqColor(e) { return eqColorMap.value.get(e) || '#FFFFFF' }
+function getEqRowStyle(e) { return { backgroundColor: `${getEqColor(e)}AA` } }
+function getGroupColor(val) {
+  return groupByEquipment.value ? getEqColor(val) : getWorkerColor(val)
+}
+function getGroupRowStyle(val) {
+  return groupByEquipment.value ? getEqRowStyle(val) : getRowStyle(val)
+}
+
+// Filter / sort / group
 const filteredOperations = computed(() => {
   const q = searchQuery.value.toLowerCase()
   if (!q) return operations.value
@@ -61,23 +81,32 @@ const filteredOperations = computed(() => {
   )
 })
 
+const checkboxFilteredOperations = computed(() => {
+  const ops = filteredOperations.value
+  if (!showSelectedOnly.value) return ops
+  return ops.filter(op => selectedIds.value.has(op.id))
+})
+
 const sortedOperations = computed(() => {
   const { key, direction } = sortConfig.value
-  return [...filteredOperations.value].sort((a, b) => {
+  return [...checkboxFilteredOperations.value].sort((a, b) => {
     let vA = a[key], vB = b[key]
     let r = typeof vA === 'string' ? vA.localeCompare(vB) : (vA || 0) - (vB || 0)
     return direction === 'asc' ? r : -r
   })
 })
 
+const groupKey = computed(() => groupByEquipment.value ? 'equipment' : 'worker')
+
 const groupedOperations = computed(() => {
   const ops = sortedOperations.value
   return ops.map((op, i) => {
-    const isStart = i === 0 || ops[i - 1].worker !== op.worker
+    const key = groupKey.value
+    const isStart = i === 0 || ops[i - 1][key] !== op[key]
     let rowspan = 0
     if (isStart) {
       rowspan = 1
-      for (let j = i + 1; j < ops.length && ops[j].worker === op.worker; j++) rowspan++
+      for (let j = i + 1; j < ops.length && ops[j][key] === op[key]; j++) rowspan++
     }
     return { op, isGroupStart: isStart, rowspan }
   })
@@ -86,8 +115,14 @@ const groupedOperations = computed(() => {
 const getSortLabel = computed(() => {
   const { key, direction } = sortConfig.value
   const arrow = direction === 'asc' ? '↑' : '↓'
-  const labels = { block: 'Блок', worker: 'Виконавець', time: 'Час', rank: 'Розряд', num: '№ Операції' }
-  return `Сорт: ${labels[key] || key} ${arrow}`
+  const labels = {
+    block: t('sort.byBlock').replace('За ', '').replace('By ', ''),
+    worker: t('sort.byWorker').replace('За ', '').replace('By ', ''),
+    time: t('sort.byTime').replace('За ', '').replace('By ', ''),
+    rank: t('sort.byRank').replace('За ', '').replace('By ', ''),
+    num: t('sort.byNum').replace('За ', '').replace('By ', ''),
+  }
+  return `${t('sort.label', { key: labels[key] || key, dir: arrow })}`
 })
 
 function setSort(key) {
@@ -100,7 +135,30 @@ function setSort(key) {
   isSortMenuOpen.value = false
 }
 
-// ── Time summary ─────────────────────────────────────────────────────────────
+// Checkbox logic
+function toggleSelect(id) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id)
+  } else {
+    selectedIds.value.add(id)
+  }
+  selectAllChecked.value = false
+}
+
+function toggleSelectAll() {
+  selectAllChecked.value = !selectAllChecked.value
+  if (selectAllChecked.value) {
+    const ids = checkboxFilteredOperations.value.map(op => op.id)
+    ids.forEach(id => selectedIds.value.add(id))
+  } else {
+    selectedIds.value.clear()
+  }
+}
+
+const selectedCount = computed(() => selectedIds.value.size)
+const totalCount = computed(() => operations.value.length)
+
+// Time summary
 const workerTimeSummary = computed(() => {
   const map = {}
   operations.value.forEach(op => {
@@ -121,11 +179,11 @@ const grandTotal = computed(() =>
   workerTimeSummary.value.reduce((s, w) => s + w.total_min, 0).toFixed(2)
 )
 
-// ── File handling ─────────────────────────────────────────────────────────────
+// File handling
 function onFilesSelected(event) {
   const files = Array.from(event.target.files)
   const csv = files.filter(f => f.name.endsWith('.csv'))
-  if (csv.length !== files.length) alert('Лише CSV-файли будуть завантажені.')
+  if (csv.length !== files.length) alert(t('op.onlyCSV'))
   const wrapped = csv.map(f => ({ id: crypto.randomUUID(), file: f, quantity: 1 }))
   selectedFiles.value = [...selectedFiles.value, ...wrapped]
   event.target.value = ''
@@ -158,12 +216,12 @@ function mapRow(row) {
 }
 
 async function processFiles() {
-  if (selectedFiles.value.length === 0) { alert('Оберіть хоча б один CSV-файл.'); return }
+  if (selectedFiles.value.length === 0) { alert(t('op.selectFileFirst')); return }
   isProcessing.value = true
   processingResult.value = null
   try {
     const profile = workersStore.getProfile()
-    const fileEntries = selectedFiles.value  // [{id, file, quantity}]
+    const fileEntries = selectedFiles.value
     const singleNoProfile = fileEntries.length === 1 && profile.workers.length === 0 && fileEntries[0].quantity === 1
     let result
     if (singleNoProfile) {
@@ -172,35 +230,37 @@ async function processFiles() {
       result = await fetchMultiProcess(
         fileEntries.map(e => e.file),
         profile,
-        fileEntries.map(e => e.quantity)  // per-file quantities array
+        fileEntries.map(e => e.quantity)
       )
     }
     if (!result.success || !Array.isArray(result.data)) {
-      throw new Error(result.error || 'Помилка обробки на сервері')
+      throw new Error(result.error || t('op.serverError'))
     }
     operations.value = result.data.map(mapRow)
+    selectedIds.value = new Set()
+    showSelectedOnly.value = false
+    selectAllChecked.value = false
     processingResult.value = result
     showResultPanel.value = true
     selectedFiles.value = []
   } catch (err) {
-    alert('Помилка: ' + (err.message || 'Не вдалося обробити файл'))
+    alert(t('op.processError') + ': ' + (err.message || ''))
     console.error(err)
   } finally {
     isProcessing.value = false
   }
 }
 
-// Legacy single-file compat
 async function handleFileUpload(event) {
   const file = event.target.files[0]
-  if (!file || !file.name.endsWith('.csv')) { alert('Завантажуйте лише CSV-файл!'); return }
+  if (!file || !file.name.endsWith('.csv')) { alert(t('op.selectCSV')); return }
   selectedFiles.value = [{ id: crypto.randomUUID(), file, quantity: 1 }]
   await processFiles()
 }
 
-// ── Export ────────────────────────────────────────────────────────────────────
+// Export
 function exportToCSV() {
-  if (operations.value.length === 0) { alert('Немає даних для експорту!'); return }
+  if (operations.value.length === 0) { alert(t('op.noData')); return }
   const data = operations.value.map((op, i) => ({
     'Блок': op.block || '',
     'Робітник': op.worker || '',
@@ -230,16 +290,15 @@ function addNewRow() {
   })
 }
 
-// ── Worker time popup ─────────────────────────────────────────────────────────
+// Worker time popup
 function countTime(group) {
   const w = group.op.worker
   const workerOps = operations.value.filter(op => op.worker === w)
   const total = workerOps.reduce((s, op) => s + (Number(op.time) || 0), 0)
   const hours = (total / 60).toFixed(2)
-  // Group by product (sourceFile) and show per-product breakdown
   const byProduct = {}
   workerOps.forEach(op => {
-    const key = op.sourceFile || 'Невідомий файл'
+    const key = op.sourceFile || t('time.unknownFile')
     if (!byProduct[key]) byProduct[key] = { time: 0, qty: op.productQuantity || 1 }
     byProduct[key].time += Number(op.time) || 0
   })
@@ -248,61 +307,73 @@ function countTime(group) {
     .join('\n')
   const weightedTotal = Object.values(byProduct).reduce((s, v) => s + v.time * v.qty, 0)
   alert(
-    `Виконавець: ${w}\n` +
-    `Кількість операцій: ${workerOps.length}\n` +
+    `${t('time.worker')}: ${w}\n` +
+    `${t('time.operations')}: ${workerOps.length}\n` +
     `─────────────────────\n` +
     `${productLines}\n` +
     `─────────────────────\n` +
-    `Зважений загальний час: ${weightedTotal.toFixed(2)} хв (${(weightedTotal/60).toFixed(2)} год)\n` +
-    `Час без зважування: ${total.toFixed(2)} хв`
+    `${t('time.weighted')}: ${weightedTotal.toFixed(2)} хв (${(weightedTotal/60).toFixed(2)} год)\n` +
+    `${t('time.unweighted')}: ${total.toFixed(2)} хв`
   )
 }
 
 const hasWorkers = computed(() => workersStore.workers.length > 0)
+
+const sortLabels = computed(() => [
+  { key: 'block', label: t('sort.byBlock') },
+  { key: 'worker', label: t('sort.byWorker') },
+  { key: 'time', label: t('sort.byTime') },
+  { key: 'rank', label: t('sort.byRank') },
+  { key: 'num', label: t('sort.byNum') },
+  { key: 'equipment', label: t('sort.byEquipment') },
+])
 </script>
 
 <template>
   <main class="operations-page">
     <header class="app-header">
-      <button @click="router.push('/')" class="header-back-link">← Головна</button>
+      <button @click="router.push('/')" class="header-back-link">{{ t('nav.home') }}</button>
       <img src="../assets/icons/logo.svg" alt="Chronologic Logo" class="header-logo-img" />
       <div class="header-right">
+        <button class="lang-toggle" @click="toggleLocale" :title="isEN ? 'Українська' : 'English'">
+          {{ isEN ? 'UA' : 'EN' }}
+        </button>
         <button @click="router.push('/profileOper')" class="workers-btn" :class="{ 'workers-btn--active': hasWorkers }">
-          👷 Профілі
+          {{ t('nav.profilesTitle') }}
           <span v-if="hasWorkers" class="workers-count-badge">{{ workersStore.workers.length }}</span>
         </button>
         <div class="user-menu">
           <div class="user-avatar">{{ authStore.username ? authStore.username[0].toUpperCase() : '?' }}</div>
           <span class="user-name">{{ authStore.username }}</span>
-          <button @click="handleLogout" class="logout-btn">Вийти</button>
+          <button @click="handleLogout" class="logout-btn">{{ t('nav.logout') }}</button>
         </div>
       </div>
     </header>
 
     <div class="content-wrapper">
 
-      <!-- ── Upload panel ── -->
+      <!-- Upload panel -->
       <div class="upload-panel">
         <div class="upload-panel__top">
           <div class="upload-left">
-            <h3 class="upload-title">Завантажити CSV файли</h3>
+            <h3 class="upload-title">{{ t('op.title') }}</h3>
             <label for="multi-file-upload" class="action-btn upload-label">
-              📂 Обрати файли
+              {{ t('op.selectFiles') }}
             </label>
             <input id="multi-file-upload" type="file" multiple accept=".csv"
                    @change="onFilesSelected" style="display:none" />
           </div>
           <div class="upload-hint" v-if="selectedFiles.length === 0">
-            Кожен файл — окремий продукт. Встановіть кількість для кожного.
+            {{ t('op.hint') }}
           </div>
         </div>
 
-        <!-- File list with per-file quantity -->
+        <!-- File list -->
         <div v-if="selectedFiles.length > 0" class="file-list">
           <div class="file-list__header">
-            <span class="fh-name">Файл (продукт)</span>
-            <span class="fh-size">Розмір</span>
-            <span class="fh-qty">Кількість</span>
+            <span class="fh-name">{{ t('op.fileName') }}</span>
+            <span class="fh-size">{{ t('op.fileSize') }}</span>
+            <span class="fh-qty">{{ t('op.fileQty') }}</span>
             <span class="fh-remove"></span>
           </div>
           <div v-for="(entry, idx) in selectedFiles" :key="entry.id" class="file-row">
@@ -321,46 +392,46 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
           </div>
           <div class="file-list__footer" v-if="selectedFiles.length > 1">
             <span class="file-list__total">
-              Всього: {{ selectedFiles.length }} продукт{{ selectedFiles.length > 1 ? 'и' : '' }} ·
-              {{ totalWeightedQuantity }} одиниць загалом
+              {{ t('op.total') }}: {{ selectedFiles.length }} {{ t('op.products') }} ·
+              {{ totalWeightedQuantity }} {{ t('op.units') }}
             </span>
           </div>
         </div>
 
         <div class="upload-panel__actions" v-if="selectedFiles.length > 0">
           <div v-if="hasWorkers" class="profile-indicator">
-            ✅ Профілі: {{ workersStore.workers.length }} робітників
+            {{ t('op.profilesLoaded', { n: workersStore.workers.length }) }}
           </div>
           <button @click="processFiles" class="process-btn" :disabled="isProcessing">
-            <span v-if="isProcessing">⏳ Обробка…</span>
-            <span v-else>▶ Обробити ({{ selectedFiles.length }} продукт{{ selectedFiles.length > 1 ? 'и' : '' }})</span>
+            <span v-if="isProcessing">{{ t('op.processing') }}</span>
+            <span v-else>{{ t('op.process', { n: selectedFiles.length }) }}</span>
           </button>
         </div>
       </div>
 
-      <!-- ── Result meta panel ── -->
+      <!-- Result meta panel -->
       <div v-if="showResultPanel && processingResult" class="result-panel">
         <button @click="showResultPanel = false" class="result-panel__close">✕</button>
         <div class="result-stats">
           <div class="result-stat">
             <span class="result-stat__n">{{ processingResult.total_after }}</span>
-            <span class="result-stat__l">операцій</span>
+            <span class="result-stat__l">{{ t('result.operations') }}</span>
           </div>
           <div class="result-stat">
             <span class="result-stat__n">{{ processingResult.files_processed ?? 1 }}</span>
-            <span class="result-stat__l">файл{{ (processingResult.files_processed ?? 1) > 1 ? 'ів' : '' }}</span>
+            <span class="result-stat__l">{{ t('result.files') }}</span>
           </div>
           <div class="result-stat">
             <span class="result-stat__n">{{ processingResult.total_products ?? processingResult.files_processed ?? 1 }}</span>
-            <span class="result-stat__l">продукт{{ (processingResult.total_products ?? 1) > 1 ? 'и' : '' }}</span>
+            <span class="result-stat__l">{{ t('result.products') }}</span>
           </div>
           <div class="result-stat">
             <span class="result-stat__n">{{ processingResult.processing_time_sec }}с</span>
-            <span class="result-stat__l">час обробки</span>
+            <span class="result-stat__l">{{ t('result.processingTime') }}</span>
           </div>
           <div class="result-stat">
             <span class="result-stat__n result-stat__n--accent">{{ grandTotal }}</span>
-            <span class="result-stat__l">хв загалом</span>
+            <span class="result-stat__l">{{ t('result.totalMinutes') }}</span>
           </div>
         </div>
 
@@ -369,11 +440,10 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
           <table class="worker-time-table">
             <thead>
               <tr>
-                <th>Виконавець</th>
-                <th>Операцій</th>
-                <th>Час (хв)</th>
-                <th>Час (год)</th>
-
+                <th>{{ t('result.worker') }}</th>
+                <th>{{ t('result.operationsCount') }}</th>
+                <th>{{ t('result.timeMin') }}</th>
+                <th>{{ t('result.timeHours') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -384,67 +454,92 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
                 <td class="wt-num">{{ ws.count }}</td>
                 <td class="wt-num">{{ ws.total_min }}</td>
                 <td class="wt-num">{{ ws.total_hours }}</td>
-
               </tr>
             </tbody>
             <tfoot>
               <tr>
-                <td class="wt-total-label">Разом</td>
+                <td class="wt-total-label">{{ t('result.total') }}</td>
                 <td class="wt-num wt-bold">{{ workerTimeSummary.reduce((s,w)=>s+w.count,0) }}</td>
                 <td class="wt-num wt-bold">{{ grandTotal }}</td>
                 <td class="wt-num wt-bold">{{ (grandTotal / 60).toFixed(3) }}</td>
-
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      <!-- ── Filter bar ── -->
+      <!-- Filter bar -->
       <div class="filter-bar">
         <div class="sort-menu-wrapper">
           <button @click="isSortMenuOpen = !isSortMenuOpen" class="filter-btn">
             {{ getSortLabel }} <FilterIcon />
           </button>
           <div v-if="isSortMenuOpen" class="sort-menu">
-            <button @click="setSort('block')"  class="sort-menu-item">За Блоком   <span v-if="sortConfig.key==='block'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
-            <button @click="setSort('worker')" class="sort-menu-item">За Виконавцем <span v-if="sortConfig.key==='worker'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
-            <button @click="setSort('time')"   class="sort-menu-item">За Часом    <span v-if="sortConfig.key==='time'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
-            <button @click="setSort('rank')"   class="sort-menu-item">За Розрядом <span v-if="sortConfig.key==='rank'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
-            <button @click="setSort('num')"    class="sort-menu-item">За № Операції <span v-if="sortConfig.key==='num'">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span></button>
+            <button v-for="s in sortLabels" :key="s.key" @click="setSort(s.key)" class="sort-menu-item">
+              {{ s.label }} <span v-if="sortConfig.key===s.key">{{ sortConfig.direction==='asc'?'↑':'↓' }}</span>
+            </button>
           </div>
         </div>
+
         <div class="search-input-wrapper">
-          <input v-model="searchQuery" type="text" placeholder="Пошук..." class="search-input" />
-          <button class="search-icon-btn" aria-label="Пошук"><SearchIcon class="search-icon-svg" /></button>
+          <input v-model="searchQuery" type="text" :placeholder="t('filter.search')" class="search-input" />
+          <button class="search-icon-btn" :aria-label="t('filter.searchAria')"><SearchIcon class="search-icon-svg" /></button>
+        </div>
+
+        <button class="filter-btn group-toggle" @click="groupByEquipment = !groupByEquipment">
+          {{ groupByEquipment ? t('group.byWorker') : t('group.byEquipment') }}
+        </button>
+
+        <div class="checkbox-filter-group">
+          <button class="filter-btn" :class="{ active: showSelectedOnly }" @click="showSelectedOnly = !showSelectedOnly">
+            {{ showSelectedOnly ? t('filter.showAll') : t('filter.showSelected') }}
+          </button>
         </div>
       </div>
 
-      <!-- ── Table ── -->
+      <!-- Selection toolbar -->
+      <div v-if="operations.length > 0" class="selection-bar">
+        <label class="select-all-checkbox">
+          <input type="checkbox" :checked="selectAllChecked" @change="toggleSelectAll" />
+          <span>{{ selectAllChecked ? t('filter.deselectAll') : t('filter.selectAll') }}</span>
+        </label>
+        <span class="selection-info">
+          {{ t('filter.selected', { n: selectedCount }) }}
+          &middot;
+          {{ t('filter.total', { n: totalCount }) }}
+        </span>
+      </div>
+
+      <!-- Table -->
       <div class="table-container">
         <table class="operations-table">
           <thead>
             <tr>
-              <th>Блок</th>
-              <th>Виконавець</th>
-              <th>Розряд</th>
-              <th>№ п/п</th>
-              <th>№ тех.оп.</th>
-              <th>Назва технологічної операції</th>
-              <th>Затрати часу, хв</th>
-              <th>Технічні умови</th>
-              <th>Файл</th>
-              <th></th>
+              <th class="th-checkbox"></th>
+              <th>{{ t('th.block') }}</th>
+              <th>{{ t('th.worker') }}</th>
+              <th>{{ t('th.rank') }}</th>
+              <th>{{ t('th.num') }}</th>
+              <th>{{ t('th.techNum') }}</th>
+              <th>{{ t('th.name') }}</th>
+              <th>{{ t('th.time') }}</th>
+              <th>{{ t('th.equipment') }}</th>
+              <th>{{ t('th.conditions') }}</th>
+              <th>{{ t('th.file') }}</th>
+              <th>{{ t('th.actions') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="groupedOperations.length === 0">
-              <td :colspan="10" class="empty-table-cell">
-                Немає операцій. Завантажте CSV або додайте рядок.
+              <td :colspan="12" class="empty-table-cell">
+                {{ t('empty.operations') }}
               </td>
             </tr>
             <template v-for="(group) in groupedOperations" :key="group.op.id">
-              <tr :style="getRowStyle(group.op.worker)">
+              <tr :style="getGroupRowStyle(groupByEquipment ? group.op.equipment : group.op.worker)">
+                <td class="td-checkbox">
+                  <input type="checkbox" :checked="selectedIds.has(group.op.id)" @change="toggleSelect(group.op.id)" />
+                </td>
                 <td><input v-model="group.op.block"       class="table-input" /></td>
                 <td><input v-model="group.op.worker"      class="table-input" /></td>
                 <td><select v-model.number="group.op.rank" class="table-input"><option v-for="n in 5" :key="n" :value="n">{{ n }}</option></select></td>
@@ -452,10 +547,11 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
                 <td><input v-model="group.op.techNum"     class="table-input" /></td>
                 <td><input v-model="group.op.name"        class="table-input" /></td>
                 <td><input v-model.number="group.op.time" type="number" step="0.1" class="table-input table-input-number" /></td>
+                <td><input v-model="group.op.equipment"   class="table-input" /></td>
                 <td><input v-model="group.op.conditions"  class="table-input" /></td>
                 <td class="source-file-cell">{{ group.op.sourceFile || '' }}</td>
                 <td v-if="group.isGroupStart" :rowspan="group.rowspan" class="action-cell-grouped" @click="countTime(group)">
-                  <button class="view-btn">⏱ Час</button>
+                  <button class="view-btn">⏱ {{ t('result.timeMin') }}</button>
                 </td>
               </tr>
             </template>
@@ -463,16 +559,60 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
         </table>
       </div>
 
-      <!-- ── Bottom actions ── -->
+      <!-- Bottom actions -->
       <div class="table-actions-bar">
-        <button @click="addNewRow"   class="action-btn">+ Рядок</button>
-        <button @click="exportToCSV" class="action-btn export-btn">↓ Експорт CSV</button>
+        <button @click="addNewRow"   class="action-btn">{{ t('op.addRow') }}</button>
+        <button @click="exportToCSV" class="action-btn export-btn">{{ t('op.exportCSV') }}</button>
       </div>
     </div>
   </main>
 </template>
 
 <style scoped>
+/* ── Language toggle ── */
+.lang-toggle {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid #d1d5db;
+  background: #fff; color: #4e48eb; font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: all .2s; font-family: inherit;
+  letter-spacing: .5px;
+}
+.lang-toggle:hover {
+  background: linear-gradient(to right,#4e48eb,#8b3ab3);
+  color: #fff; border-color: transparent;
+}
+
+/* ── Group toggle ── */
+.group-toggle {
+  min-width: 140px; justify-content: center;
+}
+
+/* ── Checkbox filter ── */
+.checkbox-filter-group {
+  display: flex; gap: 6px;
+}
+.checkbox-filter-group .filter-btn.active {
+  background: linear-gradient(to right,#4e48eb,#8b3ab3);
+  color: #fff; border-color: transparent;
+}
+
+/* ── Selection bar ── */
+.selection-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px; background: #fff; border-radius: 8px;
+  margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,.04);
+  font-size: 13px; color: #555;
+}
+.select-all-checkbox {
+  display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;
+}
+.select-all-checkbox input { accent-color: #4e48eb; width: 16px; height: 16px; cursor: pointer; }
+.selection-info { color: #999; font-size: 12px; }
+
+/* ── Checkbox column ── */
+.th-checkbox { width: 36px; min-width: 36px; padding: 12px 8px !important; text-align: center; }
+.td-checkbox { text-align: center; padding: 12px 8px !important; vertical-align: middle; }
+.td-checkbox input { accent-color: #4e48eb; width: 16px; height: 16px; cursor: pointer; }
+
 /* Upload panel */
 .upload-panel {
   background: #fff;
@@ -516,7 +656,6 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
 }
 .qty-input:focus { outline: none; border-color: #4e48eb; }
 
-/* ── File list (per-product quantity) ── */
 .upload-hint {
   margin-left: auto; font-size: 12px; color: #9090b0;
   background: rgba(78,72,235,0.07); border: 1px solid rgba(78,72,235,0.15);
@@ -529,7 +668,6 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
   border-radius: 10px;
   overflow: hidden;
 }
-
 .file-list__header {
   display: grid;
   grid-template-columns: 1fr 80px 140px 32px;
@@ -539,7 +677,6 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
   border-bottom: 1px solid #e5e7eb;
   font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.4px;
 }
-
 .file-row {
   display: grid;
   grid-template-columns: 1fr 80px 140px 32px;
@@ -551,28 +688,21 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
 }
 .file-row:last-of-type { border-bottom: none; }
 .file-row:hover { background: #f9f9ff; }
-
 .file-row__name { font-size: 13px; font-weight: 500; color: #3730a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-row__size { font-size: 12px; color: #9ca3af; text-align: right; }
-
-.file-row__qty {
-  display: flex; align-items: center; gap: 5px;
-}
+.file-row__qty { display: flex; align-items: center; gap: 5px; }
 .file-row__remove {
   background: none; border: none; cursor: pointer;
   color: #d1d5db; font-size: 13px; padding: 2px; border-radius: 4px;
   transition: color 0.15s;
 }
 .file-row__remove:hover { color: #e53935; }
-
 .file-list__footer {
   padding: 8px 14px;
   background: #f8f8ff;
   border-top: 1px solid #e5e7eb;
 }
 .file-list__total { font-size: 12px; color: #6b7280; font-weight: 500; }
-
-/* qty controls shared */
 
 .upload-panel__actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .profile-indicator { font-size: 13px; color: #2e7d32; font-weight: 500; }
@@ -597,7 +727,6 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
   background: none; border: none; font-size: 16px; cursor: pointer; color: #aaa;
 }
 .result-panel__close:hover { color: #555; }
-
 .result-stats { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; }
 .result-stat { display: flex; flex-direction: column; align-items: center; min-width: 70px; }
 .result-stat__n { font-size: 22px; font-weight: 700; color: #4e48eb; }
@@ -635,8 +764,6 @@ const hasWorkers = computed(() => workersStore.workers.length > 0)
 .workers-btn--active .workers-count-badge { color: #8b3ab3; }
 
 .source-file-cell { font-size: 11px; color: #aaa; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Keep all original styles via OperationsViewStyles.css */
 
 /* User menu */
 .header-right {

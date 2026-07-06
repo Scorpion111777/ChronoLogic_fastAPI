@@ -3,10 +3,13 @@ import { ref, computed } from 'vue'
 import { useWorkersStore } from '../stores/workers.js'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useLocaleStore } from '../stores/locale.js'
 
 const store = useWorkersStore()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t, toggleLocale, isEN } = useLocaleStore()
+
 function handleLogout() { authStore.logout(); router.push('/') }
 
 const newWorker = ref({ name: '', rank: '', equipment_type: '', equipment_quantity: 1 })
@@ -27,7 +30,7 @@ function startEdit(worker) {
   editBuffer.value = { ...worker }
 }
 function saveEdit(id) {
-  if (!editBuffer.value.name.trim()) { validationError.value = "Ім'я не може бути порожнім"; return }
+  if (!editBuffer.value.name.trim()) { validationError.value = t('profile.nameRequired'); return }
   store.updateWorker(id, editBuffer.value)
   editingId.value = null
   validationError.value = ''
@@ -38,8 +41,8 @@ function cancelEdit() {
 }
 
 function addWorker() {
-  if (!newWorker.value.name.trim()) { validationError.value = "Введіть ім'я"; return }
-  if (!newWorker.value.rank) { validationError.value = 'Оберіть розряд'; return }
+  if (!newWorker.value.name.trim()) { validationError.value = t('profile.enterName'); return }
+  if (!newWorker.value.rank) { validationError.value = t('profile.selectRank'); return }
   store.addWorker({ ...newWorker.value })
   newWorker.value = { name: '', rank: '', equipment_type: '', equipment_quantity: 1 }
   showForm.value = false
@@ -59,20 +62,25 @@ const rankCounts = computed(() => {
 <template>
   <main class="profile-page">
     <header class="app-header">
-      <button @click="router.push('/operations')" class="header-back-link">← Назад</button>
+      <button @click="router.push('/operations')" class="header-back-link">{{ t('nav.back') }}</button>
       <img src="../assets/icons/logo.svg" alt="Chronologic Logo" class="header-logo-img" />
-      <div class="user-menu-profile">
-        <div class="user-avatar-profile">{{ authStore.username ? authStore.username[0].toUpperCase() : '?' }}</div>
-        <span class="user-name-profile">{{ authStore.username }}</span>
-        <button @click="handleLogout" class="logout-btn-profile">Вийти</button>
+      <div class="header-right">
+        <button class="lang-toggle" @click="toggleLocale" :title="isEN ? 'Українська' : 'English'">
+          {{ isEN ? 'UA' : 'EN' }}
+        </button>
+        <div class="user-menu-profile">
+          <div class="user-avatar-profile">{{ authStore.username ? authStore.username[0].toUpperCase() : '?' }}</div>
+          <span class="user-name-profile">{{ authStore.username }}</span>
+          <button @click="handleLogout" class="logout-btn-profile">{{ t('nav.logout') }}</button>
+        </div>
       </div>
     </header>
 
     <div class="content-wrapper">
       <div class="page-title-row">
-        <h2 class="page-title">👷 Профілі робітників</h2>
+        <h2 class="page-title">{{ t('profile.title') }}</h2>
         <button class="add-btn" @click="showForm = !showForm">
-          {{ showForm ? '✕ Скасувати' : '+ Додати робітника' }}
+          {{ showForm ? t('profile.cancel') : t('profile.add') }}
         </button>
       </div>
 
@@ -80,44 +88,40 @@ const rankCounts = computed(() => {
       <div class="stats-bar" v-if="store.workers.length > 0">
         <div class="stat-card">
           <span class="stat-num">{{ store.workers.length }}</span>
-          <span class="stat-label">Робітників</span>
+          <span class="stat-label">{{ t('profile.workers') }}</span>
         </div>
         <div class="stat-card">
           <span class="stat-num">{{ totalEquipment }}</span>
-          <span class="stat-label">Одиниць обладнання</span>
+          <span class="stat-label">{{ t('profile.equipmentUnits') }}</span>
         </div>
         <div class="stat-card" v-for="(cnt, rank) in rankCounts" :key="rank">
           <span class="stat-num rank-badge" :style="{ background: rankColor(Number(rank)) }">{{ rank }}</span>
-          <span class="stat-label">розряд · {{ cnt }} ос.</span>
+          <span class="stat-label">{{ t('profile.rank', { n: cnt }) }}</span>
         </div>
       </div>
 
       <!-- Add worker form -->
       <div v-if="showForm" class="add-form-card">
-        <h3 class="form-title">Новий робітник</h3>
+        <h3 class="form-title">{{ t('profile.newWorker') }}</h3>
         <p v-if="validationError" class="error-msg">{{ validationError }}</p>
         <div class="form-grid">
           <div class="form-group">
-            <label>Ім'я / Прізвище</label>
-            <input v-model="newWorker.name" type="text" placeholder="Іванов І.І." class="form-input" />
+            <label>{{ t('profile.nameLabel') }}</label>
+            <input v-model="newWorker.name" type="text" :placeholder="t('profile.namePlaceholder')" class="form-input" />
           </div>
           <div class="form-group">
-            <label>Розряд</label>
+            <label>{{ t('profile.rankLabel') }}</label>
             <select v-model.number="newWorker.rank" class="form-input">
-              <option value="" disabled>Оберіть...</option>
+              <option value="" disabled>{{ t('profile.rankPlaceholder') }}</option>
               <option v-for="r in RANKS" :key="r" :value="r">{{ r }}</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Тип обладнання</label>
-            <input v-model="newWorker.equipment_type" type="text" placeholder="ВТО" class="form-input" />
+            <label>{{ t('profile.equipmentTypeLabel') }}</label>
+            <input v-model="newWorker.equipment_type" type="text" :placeholder="t('profile.equipmentTypePlaceholder')" class="form-input" />
           </div>
-          <!--<div class="form-group">-->
-            <!--<label>Кількість обладнання</label>-->
-            <!--<input v-model.number="newWorker.equipment_quantity" type="number" min="1" class="form-input" />-->
-          <!--</div>-->
         </div>
-        <button @click="addWorker" class="save-btn">Зберегти</button>
+        <button @click="addWorker" class="save-btn">{{ t('profile.save') }}</button>
       </div>
 
       <!-- Workers table -->
@@ -125,12 +129,12 @@ const rankCounts = computed(() => {
         <table class="workers-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Ім'я</th>
-              <th>Розряд</th>
-              <th>Тип обладнання</th>
-              <th>К-сть обладнання</th>
-              <th>Дії</th>
+              <th>{{ t('profile.workerNum') }}</th>
+              <th>{{ t('profile.name') }}</th>
+              <th>{{ t('profile.rankLabel') }}</th>
+              <th>{{ t('profile.equipmentTypeLabel') }}</th>
+              <th>{{ t('profile.equipmentQty') }}</th>
+              <th>{{ t('profile.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -171,7 +175,7 @@ const rankCounts = computed(() => {
       </div>
 
       <div v-else-if="!showForm" class="empty-state">
-        <p>Немає жодного робітника.<br/>Натисніть <strong>+ Додати робітника</strong> щоб почати.</p>
+        <p>{{ t('profile.empty', { btn: t('profile.add') }) }}</p>
       </div>
     </div>
   </main>
@@ -198,7 +202,23 @@ const rankCounts = computed(() => {
   background: transparent; border: none; cursor: pointer;
 }
 .header-logo-img { height: 45px; width: auto; }
-.header-user-icon { width: 36px; height: 36px; border-radius: 50%; background: #f0f0f0; border: 1px solid #ddd; }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lang-toggle {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid #d1d5db;
+  background: #fff; color: #4e48eb; font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: all .2s; font-family: inherit;
+  letter-spacing: .5px;
+}
+.lang-toggle:hover {
+  background: linear-gradient(to right,#4e48eb,#8b3ab3);
+  color: #fff; border-color: transparent;
+}
 
 .content-wrapper { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
 

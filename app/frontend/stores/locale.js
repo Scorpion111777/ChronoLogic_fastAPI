@@ -1,0 +1,378 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+const messages = {
+  uk: {
+    // Navigation
+    'nav.home': '← Головна',
+    'nav.back': '← Назад',
+    'nav.profiles': 'Профілі',
+    'nav.profilesTitle': '👷 Профілі',
+    'nav.logout': 'Вийти',
+    'nav.login': 'Увійти',
+    'nav.register': 'Реєстрація',
+    'nav.openApp': 'Відкрити застосунок',
+    'nav.greeting': 'Ласкаво просимо',
+    'nav.start': 'Почати роботу',
+    'nav.startFree': 'Почати безкоштовно',
+
+    // Operations page
+    'op.title': 'Завантажити CSV файли',
+    'op.selectFiles': '📂 Обрати файли',
+    'op.hint': 'Кожен файл — окремий продукт. Встановіть кількість для кожного.',
+    'op.fileName': 'Файл (продукт)',
+    'op.fileSize': 'Розмір',
+    'op.fileQty': 'Кількість',
+    'op.total': 'Всього',
+    'op.products': 'продукт(и)',
+    'op.units': 'одиниць загалом',
+    'op.profilesLoaded': '✅ Профілі: {n} робітників',
+    'op.process': '▶ Обробити ({n} продукт(и))',
+    'op.processing': '⏳ Обробка…',
+    'op.onlyCSV': 'Лише CSV-файли будуть завантажені.',
+    'op.selectCSV': 'Завантажуйте лише CSV-файл!',
+    'op.noData': 'Немає даних для експорту!',
+    'op.selectFileFirst': 'Оберіть хоча б один CSV-файл.',
+    'op.serverError': 'Помилка обробки на сервері',
+    'op.processError': 'Помилка',
+    'op.addRow': '+ Рядок',
+    'op.exportCSV': '↓ Експорт CSV',
+
+    // Result panel
+    'result.operations': 'операцій',
+    'result.files': 'файл(ів)',
+    'result.products': 'продукт(и)',
+    'result.processingTime': 'час обробки',
+    'result.totalMinutes': 'хв загалом',
+    'result.worker': 'Виконавець',
+    'result.operationsCount': 'Операцій',
+    'result.timeMin': 'Час (хв)',
+    'result.timeHours': 'Час (год)',
+    'result.total': 'Разом',
+
+    // Table headers
+    'th.block': 'Блок',
+    'th.worker': 'Виконавець',
+    'th.rank': 'Розряд',
+    'th.num': '№ п/п',
+    'th.techNum': '№ тех.оп.',
+    'th.name': 'Назва технологічної операції',
+    'th.time': 'Затрати часу, хв',
+    'th.conditions': 'Технічні умови',
+    'th.file': 'Файл',
+    'th.equipment': 'Обладнання',
+    'th.actions': '',
+
+    // Sort
+    'sort.label': 'Сорт: {key} {dir}',
+    'sort.byBlock': 'За Блоком',
+    'sort.byWorker': 'За Виконавцем',
+    'sort.byTime': 'За Часом',
+    'sort.byRank': 'За Розрядом',
+    'sort.byNum': 'За № Операції',
+    'sort.byEquipment': 'За Обладнанням',
+
+    // Filter
+    'filter.search': 'Пошук...',
+    'filter.searchAria': 'Пошук',
+    'filter.showAll': 'Показати всі',
+    'filter.showSelected': 'Тільки вибрані',
+    'filter.selectAll': 'Вибрати всі',
+    'filter.deselectAll': 'Зняти всі',
+    'filter.selected': 'Вибрано: {n}',
+    'filter.total': 'Всього: {n}',
+
+    // Group by
+    'group.byWorker': 'За виконавцем',
+    'group.byEquipment': 'За обладнанням',
+
+    // Empty
+    'empty.operations': 'Немає операцій. Завантажте CSV або додайте рядок.',
+
+    // Time popup
+    'time.worker': 'Виконавець',
+    'time.operations': 'Кількість операцій',
+    'time.weighted': 'Зважений загальний час',
+    'time.unweighted': 'Час без зважування',
+    'time.unknownFile': 'Невідомий файл',
+
+    // Profiles page
+    'profile.title': '👷 Профілі робітників',
+    'profile.cancel': '✕ Скасувати',
+    'profile.add': '+ Додати робітника',
+    'profile.workers': 'Робітників',
+    'profile.equipmentUnits': 'Одиниць обладнання',
+    'profile.rank': 'розряд · {n} ос.',
+    'profile.newWorker': 'Новий робітник',
+    'profile.nameLabel': 'Ім\'я / Прізвище',
+    'profile.namePlaceholder': 'Іванов І.І.',
+    'profile.rankLabel': 'Розряд',
+    'profile.rankPlaceholder': 'Оберіть...',
+    'profile.equipmentTypeLabel': 'Тип обладнання',
+    'profile.equipmentTypePlaceholder': 'ВТО',
+    'profile.save': 'Зберегти',
+    'profile.nameRequired': 'Ім\'я не може бути порожнім',
+    'profile.enterName': 'Введіть ім\'я',
+    'profile.selectRank': 'Оберіть розряд',
+    'profile.workerNum': '#',
+    'profile.name': 'Ім\'я',
+    'profile.equipmentType': 'Тип обладнання',
+    'profile.equipmentQty': 'К-сть обладнання',
+    'profile.actions': 'Дії',
+    'profile.empty': 'Немає жодного робітника.\nНатисніть {btn} щоб почати.',
+
+    // Auth
+    'auth.loginTitle': 'Увійти в акаунт',
+    'auth.registerTitle': 'Створити акаунт',
+    'auth.loginSub': 'Ласкаво просимо назад!',
+    'auth.registerSub': 'Приєднуйтесь до ChronoLogic',
+    'auth.nameLabel': 'Ім\'я та прізвище',
+    'auth.namePlaceholder': 'Іванов Іван',
+    'auth.emailPlaceholder': 'you@example.com',
+    'auth.passwordLabel': 'Пароль',
+    'auth.passwordPlaceholder': 'Мінімум 6 символів',
+    'auth.confirmLabel': 'Підтвердіть пароль',
+    'auth.confirmPlaceholder': 'Повторіть пароль',
+    'auth.loginBtn': 'Увійти',
+    'auth.registerBtn': 'Зареєструватись',
+    'auth.noAccount': 'Немає акаунту?',
+    'auth.hasAccount': 'Вже є акаунт?',
+    'auth.registerLink': 'Зареєструватись',
+    'auth.loginLink': 'Увійти',
+    'auth.nameError': "Введіть ваше ім'я",
+    'auth.passwordMismatch': 'Паролі не збігаються',
+    'auth.userExists': 'Користувач з таким email вже існує',
+    'auth.passwordShort': 'Пароль має бути не менше 6 символів',
+    'auth.invalidCredentials': 'Невірний email або пароль',
+
+    // Landing page
+    'landing.badge': 'Оптимізація технологічних процесів',
+    'landing.title1': 'Розподіл операцій',
+    'landing.title2': 'з точністю до хвилини',
+    'landing.desc': 'ChronoLogic автоматично аналізує технологічні операції, розподіляє навантаження між виконавцями та надає детальну статистику часу — все в зручному інтерфейсі.',
+    'landing.csv': 'CSV',
+    'landing.csvLabel': 'Підтримка',
+    'landing.files': '∞',
+    'landing.filesLabel': 'Файлів',
+    'landing.ranks': '5',
+    'landing.ranksLabel': 'Розрядів',
+    'landing.sectionTitle': 'Все для вашого виробництва',
+    'landing.sectionDesc': 'Інструменти для аналізу та оптимізації технологічних операцій',
+    'landing.feature1Title': 'Імпорт CSV',
+    'landing.feature1Desc': 'Завантажуйте декілька файлів одночасно та автоматично розподіляйте операції між виконавцями.',
+    'landing.feature2Title': 'Профілі робітників',
+    'landing.feature2Desc': 'Налаштовуйте профілі з розрядами та обладнанням для точного планування робочого часу.',
+    'landing.feature3Title': 'Аналіз часу',
+    'landing.feature3Desc': 'Детальна статистика витрат часу по кожному виконавцю з підтримкою кількох зразків.',
+    'landing.feature4Title': 'Гнучке сортування',
+    'landing.feature4Desc': 'Фільтруйте та сортуйте операції за будь-яким параметром — швидко та зручно.',
+    'landing.feature5Title': 'Експорт результатів',
+    'landing.feature5Desc': 'Вивантажуйте оброблені дані у CSV з повним збереженням структури та форматування.',
+    'landing.feature6Title': 'Акаунти користувачів',
+    'landing.feature6Desc': 'Зберігайте налаштування профілів та зручно повертайтесь до роботи будь-коли.',
+    'landing.ctaTitle': 'Готові оптимізувати виробництво?',
+    'landing.ctaDesc': 'Реєстрація займає менше хвилини. Починайте аналізувати операції вже зараз.',
+    'landing.footer': '© 2026 ChronoLogic. Усі права захищено.',
+    'landing.previewTotal': 'Загалом: {total} хв · {n} виконавців',
+    'landing.rankFormat': '{n} розряд',
+  },
+  en: {
+    // Navigation
+    'nav.home': '← Home',
+    'nav.back': '← Back',
+    'nav.profiles': 'Profiles',
+    'nav.profilesTitle': '👷 Profiles',
+    'nav.logout': 'Log out',
+    'nav.login': 'Log in',
+    'nav.register': 'Register',
+    'nav.openApp': 'Open app',
+    'nav.greeting': 'Welcome',
+    'nav.start': 'Get started',
+    'nav.startFree': 'Start for free',
+
+    // Operations page
+    'op.title': 'Upload CSV files',
+    'op.selectFiles': '📂 Select files',
+    'op.hint': 'Each file is a separate product. Set quantity for each.',
+    'op.fileName': 'File (product)',
+    'op.fileSize': 'Size',
+    'op.fileQty': 'Quantity',
+    'op.total': 'Total',
+    'op.products': 'product(s)',
+    'op.units': 'units total',
+    'op.profilesLoaded': '✅ Profiles: {n} workers',
+    'op.process': '▶ Process ({n} product(s))',
+    'op.processing': '⏳ Processing…',
+    'op.onlyCSV': 'Only CSV files will be uploaded.',
+    'op.selectCSV': 'Only CSV files allowed!',
+    'op.noData': 'No data to export!',
+    'op.selectFileFirst': 'Select at least one CSV file.',
+    'op.serverError': 'Server processing error',
+    'op.processError': 'Error',
+    'op.addRow': '+ Row',
+    'op.exportCSV': '↓ Export CSV',
+
+    // Result panel
+    'result.operations': 'operations',
+    'result.files': 'file(s)',
+    'result.products': 'product(s)',
+    'result.processingTime': 'processing time',
+    'result.totalMinutes': 'total min',
+    'result.worker': 'Worker',
+    'result.operationsCount': 'Operations',
+    'result.timeMin': 'Time (min)',
+    'result.timeHours': 'Time (hrs)',
+    'result.total': 'Total',
+
+    // Table headers
+    'th.block': 'Block',
+    'th.worker': 'Worker',
+    'th.rank': 'Rank',
+    'th.num': 'No.',
+    'th.techNum': 'Tech No.',
+    'th.name': 'Operation name',
+    'th.time': 'Time, min',
+    'th.conditions': 'Conditions',
+    'th.file': 'File',
+    'th.equipment': 'Equipment',
+    'th.actions': '',
+
+    // Sort
+    'sort.label': 'Sort: {key} {dir}',
+    'sort.byBlock': 'By Block',
+    'sort.byWorker': 'By Worker',
+    'sort.byTime': 'By Time',
+    'sort.byRank': 'By Rank',
+    'sort.byNum': 'By No.',
+    'sort.byEquipment': 'By Equipment',
+
+    // Filter
+    'filter.search': 'Search...',
+    'filter.searchAria': 'Search',
+    'filter.showAll': 'Show all',
+    'filter.showSelected': 'Selected only',
+    'filter.selectAll': 'Select all',
+    'filter.deselectAll': 'Deselect all',
+    'filter.selected': 'Selected: {n}',
+    'filter.total': 'Total: {n}',
+
+    // Group by
+    'group.byWorker': 'By worker',
+    'group.byEquipment': 'By equipment',
+
+    // Empty
+    'empty.operations': 'No operations. Upload CSV or add a row.',
+
+    // Time popup
+    'time.worker': 'Worker',
+    'time.operations': 'Operations count',
+    'time.weighted': 'Weighted total time',
+    'time.unweighted': 'Unweighted time',
+    'time.unknownFile': 'Unknown file',
+
+    // Profiles page
+    'profile.title': '👷 Worker profiles',
+    'profile.cancel': '✕ Cancel',
+    'profile.add': '+ Add worker',
+    'profile.workers': 'Workers',
+    'profile.equipmentUnits': 'Equipment units',
+    'profile.rank': 'rank · {n} pers.',
+    'profile.newWorker': 'New worker',
+    'profile.nameLabel': 'Name',
+    'profile.namePlaceholder': 'Ivanov I.I.',
+    'profile.rankLabel': 'Rank',
+    'profile.rankPlaceholder': 'Select...',
+    'profile.equipmentTypeLabel': 'Equipment type',
+    'profile.equipmentTypePlaceholder': 'VTO',
+    'profile.save': 'Save',
+    'profile.nameRequired': 'Name cannot be empty',
+    'profile.enterName': 'Enter name',
+    'profile.selectRank': 'Select rank',
+    'profile.workerNum': '#',
+    'profile.name': 'Name',
+    'profile.equipmentType': 'Equipment type',
+    'profile.equipmentQty': 'Equipment qty',
+    'profile.actions': 'Actions',
+    'profile.empty': 'No workers yet.\nClick {btn} to start.',
+
+    // Auth
+    'auth.loginTitle': 'Sign in',
+    'auth.registerTitle': 'Create account',
+    'auth.loginSub': 'Welcome back!',
+    'auth.registerSub': 'Join ChronoLogic',
+    'auth.nameLabel': 'Full name',
+    'auth.namePlaceholder': 'Ivan Ivanov',
+    'auth.emailPlaceholder': 'you@example.com',
+    'auth.passwordLabel': 'Password',
+    'auth.passwordPlaceholder': 'Min 6 characters',
+    'auth.confirmLabel': 'Confirm password',
+    'auth.confirmPlaceholder': 'Repeat password',
+    'auth.loginBtn': 'Sign in',
+    'auth.registerBtn': 'Sign up',
+    'auth.noAccount': "Don't have an account?",
+    'auth.hasAccount': 'Already have an account?',
+    'auth.registerLink': 'Sign up',
+    'auth.loginLink': 'Sign in',
+    'auth.nameError': 'Enter your name',
+    'auth.passwordMismatch': 'Passwords do not match',
+    'auth.userExists': 'User with this email already exists',
+    'auth.passwordShort': 'Password must be at least 6 characters',
+    'auth.invalidCredentials': 'Invalid email or password',
+
+    // Landing page
+    'landing.badge': 'Technological process optimization',
+    'landing.title1': 'Operations distribution',
+    'landing.title2': 'with minute precision',
+    'landing.desc': 'ChronoLogic automatically analyzes technological operations, distributes workload among workers, and provides detailed time statistics — all in a convenient interface.',
+    'landing.csv': 'CSV',
+    'landing.csvLabel': 'Support',
+    'landing.files': '∞',
+    'landing.filesLabel': 'Files',
+    'landing.ranks': '5',
+    'landing.ranksLabel': 'Ranks',
+    'landing.sectionTitle': 'Everything for your production',
+    'landing.sectionDesc': 'Tools for analysis and optimization of technological operations',
+    'landing.feature1Title': 'CSV Import',
+    'landing.feature1Desc': 'Upload multiple files at once and automatically distribute operations among workers.',
+    'landing.feature2Title': 'Worker profiles',
+    'landing.feature2Desc': 'Set up profiles with ranks and equipment for accurate work time planning.',
+    'landing.feature3Title': 'Time analysis',
+    'landing.feature3Desc': 'Detailed time statistics for each worker with multi-sample support.',
+    'landing.feature4Title': 'Flexible sorting',
+    'landing.feature4Desc': 'Filter and sort operations by any parameter — fast and convenient.',
+    'landing.feature5Title': 'Export results',
+    'landing.feature5Desc': 'Export processed data to CSV with full structure and formatting preservation.',
+    'landing.feature6Title': 'User accounts',
+    'landing.feature6Desc': 'Save profile settings and conveniently return to work anytime.',
+    'landing.ctaTitle': 'Ready to optimize production?',
+    'landing.ctaDesc': 'Registration takes less than a minute. Start analyzing operations right now.',
+    'landing.footer': '© 2026 ChronoLogic. All rights reserved.',
+    'landing.previewTotal': 'Total: {total} min · {n} workers',
+    'landing.rankFormat': 'rank {n}',
+  },
+}
+
+export const useLocaleStore = defineStore('locale', () => {
+  const saved = localStorage.getItem('chronologic_locale')
+  const locale = ref(saved || 'uk')
+
+  const t = (key, params = {}) => {
+    const text = messages[locale.value]?.[key] ?? messages.uk[key] ?? key
+    return text.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `{${k}}`)
+  }
+
+  function setLocale(l) {
+    if (messages[l]) {
+      locale.value = l
+      localStorage.setItem('chronologic_locale', l)
+    }
+  }
+
+  function toggleLocale() {
+    setLocale(locale.value === 'uk' ? 'en' : 'uk')
+  }
+
+  const isEN = computed(() => locale.value === 'en')
+
+  return { locale, t, setLocale, toggleLocale, isEN }
+})
