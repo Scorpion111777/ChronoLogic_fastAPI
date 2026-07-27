@@ -1,5 +1,10 @@
 import pytest
 from src.core.algorithm import process_fixed_operations
+from src.core.xlsx_utils import (
+    read_xlsx_to_dataframe, export_to_xlsx,
+    _find_column_mapping, _detect_time_unit,
+)
+import pandas as pd
 
 @pytest.fixture
 def raw_csv_bytes():
@@ -40,3 +45,45 @@ def test_missing_required_column():
         process_fixed_operations(bad_csv)
 
     assert "CSV must contain" in str(excinfo.value)
+
+
+def test_column_mapping_regex():
+    mapping = _find_column_mapping([
+        "Name of Operation", "Worker Name", "Rank", "Equipment Type",
+        "Seq No.", "Tech Operation", "Time Cost", "Notes",
+    ])
+    assert mapping.get("Назва технологічної операції") == "Name of Operation"
+    assert mapping.get("Розряд") == "Rank"
+    assert mapping.get("Затрати часу, хв") == "Time Cost"
+
+
+def test_column_mapping_ukrainian():
+    mapping = _find_column_mapping([
+        "Блок", "Робітник", "Розряд", "Обладнання",
+        "№ п/п", "№ тех.оп.", "Назва технологічної операції",
+        "Затрати часу, хв", "Технічні умови",
+    ])
+    assert len(mapping) == 9
+
+
+def test_time_unit_detection_minutes():
+    assert _detect_time_unit([1.5, 2.0, 3.5]) == "minutes"
+
+
+def test_time_unit_detection_seconds():
+    assert _detect_time_unit([120, 300, 45]) == "seconds"
+
+
+def test_export_xlsx_roundtrip():
+    rows = [
+        {"block": "A", "worker": "Іванов", "rank": 4, "equipment": "ВТО",
+         "num": 1, "techNum": "Б 2.62", "name": "З'єднання", "time": 1.8,
+         "conditions": "Тест"},
+    ]
+    xlsx_bytes = export_to_xlsx(rows)
+    assert len(xlsx_bytes) > 0
+
+    df, meta = read_xlsx_to_dataframe(xlsx_bytes)
+    assert "Затрати часу, хв" in df.columns
+    assert "Розряд" in df.columns
+    assert meta["mapped_count"] >= 5

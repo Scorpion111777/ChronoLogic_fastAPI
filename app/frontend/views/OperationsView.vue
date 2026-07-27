@@ -5,7 +5,7 @@ import FilterIcon from '../assets/icons/FilterIcon.vue'
 import SearchIcon from '../assets/icons/SearchIcon.vue'
 import Papa from 'papaparse'
 import './styles/OperationsViewStyles.css'
-import fetchExportToCSV, { fetchMultiProcess } from '../request/importCSV.js'
+import fetchExportToCSV, { fetchMultiProcess, fetchProcessFixed, fetchExportXlsx } from '../request/importCSV.js'
 import { useWorkersStore } from '../stores/workers.js'
 import { useAuthStore } from '../stores/auth.js'
 import { useLocaleStore } from '../stores/locale.js'
@@ -32,6 +32,9 @@ const selectAllChecked = ref(false)
 // Multi-file state
 const selectedFiles = ref([])
 const isProcessing = ref(false)
+const timeUnitSetting = ref(null) // null = auto, 'minutes', 'seconds'
+
+const ALLOWED_EXTENSIONS = ['.csv', '.xlsx', '.xls']
 
 const totalWeightedQuantity = computed(() =>
   selectedFiles.value.reduce((s, f) => s + (f.quantity || 1), 0)
@@ -182,9 +185,12 @@ const grandTotal = computed(() =>
 // File handling
 function onFilesSelected(event) {
   const files = Array.from(event.target.files)
-  const csv = files.filter(f => f.name.endsWith('.csv'))
-  if (csv.length !== files.length) alert(t('op.onlyCSV'))
-  const wrapped = csv.map(f => ({ id: crypto.randomUUID(), file: f, quantity: 1 }))
+  const valid = files.filter(f => {
+    const lower = f.name.toLowerCase()
+    return ALLOWED_EXTENSIONS.some(ext => lower.endsWith(ext))
+  })
+  if (valid.length !== files.length) alert(t('op.onlySupported'))
+  const wrapped = valid.map(f => ({ id: crypto.randomUUID(), file: f, quantity: 1 }))
   selectedFiles.value = [...selectedFiles.value, ...wrapped]
   event.target.value = ''
 }
@@ -222,15 +228,20 @@ async function processFiles() {
   try {
     const profile = workersStore.getProfile()
     const fileEntries = selectedFiles.value
-    const singleNoProfile = fileEntries.length === 1 && profile.workers.length === 0 && fileEntries[0].quantity === 1
+    const hasXlsx = fileEntries.some(e => {
+      const lower = e.file.name.toLowerCase()
+      return lower.endsWith('.xlsx') || lower.endsWith('.xls')
+    })
+    const singleNoProfile = fileEntries.length === 1 && profile.workers.length === 0 && fileEntries[0].quantity === 1 && !hasXlsx
     let result
     if (singleNoProfile) {
-      result = await fetchExportToCSV(fileEntries[0].file)
+      result = await fetchProcessFixed(fileEntries[0].file, timeUnitSetting.value)
     } else {
       result = await fetchMultiProcess(
         fileEntries.map(e => e.file),
         profile,
-        fileEntries.map(e => e.quantity)
+        fileEntries.map(e => e.quantity),
+        timeUnitSetting.value
       )
     }
     if (!result.success || !Array.isArray(result.data)) {
@@ -253,7 +264,10 @@ async function processFiles() {
 
 async function handleFileUpload(event) {
   const file = event.target.files[0]
-  if (!file || !file.name.endsWith('.csv')) { alert(t('op.selectCSV')); return }
+  if (!file) return
+  const lower = file.name.toLowerCase()
+  const valid = ALLOWED_EXTENSIONS.some(ext => lower.endsWith(ext))
+  if (!valid) { alert(t('op.onlySupported')); return }
   selectedFiles.value = [{ id: crypto.randomUUID(), file, quantity: 1 }]
   await processFiles()
 }
@@ -280,6 +294,34 @@ function exportToCSV() {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+}
+
+async function exportToXLSX() {
+  if (operations.value.length === 0) { alert(t('op.noData')); return }
+  try {
+    const data = operations.value.map((op, i) => ({
+      'Блок': op.block || '',
+      'Робітник': op.worker || '',
+      'Розряд': op.rank || '',
+      'Обладнання': op.equipment || '',
+      '№ п/п': i + 1,
+      '№ тех.оп.': op.techNum || '',
+      'Назва технологічної операції': op.name || '',
+      'Затрати часу, хв': op.time || 0,
+      'Технічні умови': op.conditions || '',
+    }))
+    const blob = await fetchExportXlsx(data)
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'operations_export.xlsx'
+    a.style.visibility = 'hidden'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } catch (err) {
+    alert(t('op.exportError') + ': ' + (err.message || ''))
+    console.error(err)
+  }
 }
 
 function addNewRow() {
@@ -360,12 +402,22 @@ const sortLabels = computed(() => [
             <label for="multi-file-upload" class="action-btn upload-label">
               {{ t('op.selectFiles') }}
             </label>
-            <input id="multi-file-upload" type="file" multiple accept=".csv"
+            <input id="multi-file-upload" type="file" multiple accept=".csv,.xlsx,.xls"
                    @change="onFilesSelected" style="display:none" />
           </div>
           <div class="upload-hint" v-if="selectedFiles.length === 0">
-            {{ t('op.hint') }}
+            {{ t('op.hintXlsx') }}
           </div>
+        </div>
+
+        <!-- Time unit setting -->
+        <div class="time-unit-setting">
+          <label class="time-unit-label">{{ t('op.timeUnit') }}:</label>
+          <select v-model="timeUnitSetting" class="time-unit-select">
+            <option :value="null">{{ t('op.timeAuto') }}</option>
+            <option value="minutes">{{ t('op.timeMinutes') }}</option>
+            <option value="seconds">{{ t('op.timeSeconds') }}</option>
+          </select>
         </div>
 
         <!-- File list -->
@@ -432,6 +484,18 @@ const sortLabels = computed(() => [
           <div class="result-stat">
             <span class="result-stat__n result-stat__n--accent">{{ grandTotal }}</span>
             <span class="result-stat__l">{{ t('result.totalMinutes') }}</span>
+          </div>
+        </div>
+
+        <!-- Import meta info (for XLSX) -->
+        <div v-if="processingResult.import_meta" class="import-meta">
+          <div v-if="processingResult.import_meta.detected_time_unit" class="import-meta__item">
+            <span class="import-meta__label">{{ t('result.detectedTime') }}:</span>
+            <span class="import-meta__value">{{ processingResult.import_meta.detected_time_unit === 'seconds' ? t('op.timeSeconds') : t('op.timeMinutes') }}</span>
+          </div>
+          <div v-if="processingResult.import_meta.mapped_count !== undefined" class="import-meta__item">
+            <span class="import-meta__label">{{ t('result.columnsMapped') }}:</span>
+            <span class="import-meta__value">{{ processingResult.import_meta.mapped_count }}/{{ processingResult.import_meta.total_columns }}</span>
           </div>
         </div>
 
@@ -542,7 +606,7 @@ const sortLabels = computed(() => [
                 </td>
                 <td><input v-model="group.op.block"       class="table-input" /></td>
                 <td><input v-model="group.op.worker"      class="table-input" /></td>
-                <td><select v-model.number="group.op.rank" class="table-input"><option v-for="n in 5" :key="n" :value="n">{{ n }}</option></select></td>
+                <td><select v-model.number="group.op.rank" class="table-input"><option v-for="n in 8" :key="n" :value="n">{{ n }}</option></select></td>
                 <td><input v-model="group.op.num"         class="table-input" /></td>
                 <td><input v-model="group.op.techNum"     class="table-input" /></td>
                 <td><input v-model="group.op.name"        class="table-input" /></td>
@@ -563,6 +627,7 @@ const sortLabels = computed(() => [
       <div class="table-actions-bar">
         <button @click="addNewRow"   class="action-btn">{{ t('op.addRow') }}</button>
         <button @click="exportToCSV" class="action-btn export-btn">{{ t('op.exportCSV') }}</button>
+        <button @click="exportToXLSX" class="action-btn export-btn export-btn--xlsx">{{ t('op.exportXLSX') }}</button>
       </div>
     </div>
   </main>
@@ -764,6 +829,37 @@ const sortLabels = computed(() => [
 .workers-btn--active .workers-count-badge { color: #8b3ab3; }
 
 .source-file-cell { font-size: 11px; color: #aaa; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Time unit setting */
+.time-unit-setting {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px; font-size: 13px;
+}
+.time-unit-label { font-weight: 600; color: #555; }
+.time-unit-select {
+  padding: 5px 10px; border: 1px solid #d1d5db; border-radius: 8px;
+  font-size: 13px; font-family: inherit; background: #fff; color: #374151;
+  cursor: pointer;
+}
+.time-unit-select:focus { outline: none; border-color: #4e48eb; }
+
+/* Import meta */
+.import-meta {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  padding: 8px 12px; margin-top: 8px;
+  background: rgba(78,72,235,0.05); border: 1px solid rgba(78,72,235,0.12);
+  border-radius: 8px; font-size: 12px;
+}
+.import-meta__item { display: flex; align-items: center; gap: 4px; }
+.import-meta__label { color: #888; font-weight: 500; }
+.import-meta__value { color: #4e48eb; font-weight: 700; }
+
+/* XLSX export button */
+.export-btn--xlsx {
+  background: linear-gradient(to right, #2e7d32, #43a047);
+  border-color: transparent;
+}
+.export-btn--xlsx:hover { opacity: 0.85; }
 
 /* User menu */
 .header-right {
