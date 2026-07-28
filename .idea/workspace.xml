@@ -6,9 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="5cdc849c-776c-4be7-86ca-e60f5af12483" name="Changes" comment="fix">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/views/LandingView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/LandingView.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/frontend/views/ProfileOperations.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/ProfileOperations.vue" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -204,7 +201,15 @@
       <option name="project" value="LOCAL" />
       <updated>1774177815900</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="fix">
+      <option name="closed" value="true" />
+      <created>1778095157581</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1778095157581</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
