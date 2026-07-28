@@ -1,13 +1,16 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/auth.js'
 import { useLocaleStore } from '../stores/locale.js'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const { t, toggleLocale, isEN } = useLocaleStore()
+const localeStore = useLocaleStore()
+const { t, toggleLocale } = localeStore
+const { isEN } = storeToRefs(localeStore)
 
 const isLogin = computed(() => route.name === 'login')
 const name = ref('')

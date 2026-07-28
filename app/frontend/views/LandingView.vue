@@ -1,12 +1,15 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/auth.js'
 import { useLocaleStore } from '../stores/locale.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { t, toggleLocale, isEN } = useLocaleStore()
+const localeStore = useLocaleStore()
+const { t, toggleLocale } = localeStore
+const { isEN } = storeToRefs(localeStore)
 
 const features = computed(() => [
   { icon: '📂', title: t('landing.feature1Title'), desc: t('landing.feature1Desc') },

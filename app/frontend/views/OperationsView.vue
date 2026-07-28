@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import FilterIcon from '../assets/icons/FilterIcon.vue'
 import SearchIcon from '../assets/icons/SearchIcon.vue'
 import Papa from 'papaparse'
@@ -13,7 +14,9 @@ import { useLocaleStore } from '../stores/locale.js'
 const router = useRouter()
 const workersStore = useWorkersStore()
 const authStore = useAuthStore()
-const { t, toggleLocale, isEN } = useLocaleStore()
+const localeStore = useLocaleStore()
+const { t, toggleLocale } = localeStore
+const { isEN } = storeToRefs(localeStore)
 
 function handleLogout() {
   authStore.logout()

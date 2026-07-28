@@ -2,13 +2,16 @@
 import { ref, computed } from 'vue'
 import { useWorkersStore } from '../stores/workers.js'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/auth.js'
 import { useLocaleStore } from '../stores/locale.js'
 
 const store = useWorkersStore()
 const router = useRouter()
 const authStore = useAuthStore()
-const { t, toggleLocale, isEN } = useLocaleStore()
+const localeStore = useLocaleStore()
+const { t, toggleLocale } = localeStore
+const { isEN } = storeToRefs(localeStore)
 
 function handleLogout() { authStore.logout(); router.push('/') }
 
