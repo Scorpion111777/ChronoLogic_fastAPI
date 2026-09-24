@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import FilterIcon from '../assets/icons/FilterIcon.vue'
@@ -8,15 +8,29 @@ import Papa from 'papaparse'
 import './styles/OperationsViewStyles.css'
 import fetchExportToCSV, { fetchMultiProcess, fetchProcessFixed, fetchExportXlsx } from '../request/importCSV.js'
 import { useWorkersStore } from '../stores/workers.js'
+import { useHistoryStore } from '../stores/history.js'
 import { useAuthStore } from '../stores/auth.js'
 import { useLocaleStore } from '../stores/locale.js'
 
 const router = useRouter()
 const workersStore = useWorkersStore()
+const historyStore = useHistoryStore()
 const authStore = useAuthStore()
 const localeStore = useLocaleStore()
 const { t, toggleLocale } = localeStore
 const { isEN } = storeToRefs(localeStore)
+
+const userId = computed(() => authStore.currentUser?.id || 'guest')
+
+onMounted(() => {
+  workersStore.loadForUser(userId.value)
+  historyStore.loadHistory(userId.value)
+})
+
+watch(userId, (newId) => {
+  workersStore.loadForUser(newId)
+  historyStore.loadHistory(newId)
+})
 
 function handleLogout() {
   authStore.logout()
@@ -229,7 +243,7 @@ async function processFiles() {
   isProcessing.value = true
   processingResult.value = null
   try {
-    const profile = workersStore.getProfile()
+    const profile = workersStore.getProfile(selectedTeamId.value)
     const fileEntries = selectedFiles.value
     const hasXlsx = fileEntries.some(e => {
       const lower = e.file.name.toLowerCase()
@@ -256,6 +270,25 @@ async function processFiles() {
     selectAllChecked.value = false
     processingResult.value = result
     showResultPanel.value = true
+
+    // Auto-save run into history
+    const activeTeamObj = workersStore.teams.find(t => t.id === selectedTeamId.value)
+    const savedEntry = historyStore.addHistory({
+      filenames: fileEntries.map(e => e.file.name),
+      totalProducts: result.total_products || fileEntries.length,
+      totalOperations: operations.value.length,
+      totalTimeMin: parseFloat(grandTotal.value),
+      teamId: selectedTeamId.value,
+      teamName: selectedTeamId.value === 'all' ? t('teams.all') : (activeTeamObj ? activeTeamObj.name : ''),
+      operations: operations.value,
+      workerSummary: workerTimeSummary.value,
+      importMeta: result.import_meta || null,
+      equipmentMismatches: result.equipment_mismatches || [],
+      unmatchedEquipmentSummary: result.unmatched_equipment_summary || [],
+    }, userId.value)
+    loadedHistoryId.value = savedEntry.id
+    loadedHistoryTitle.value = savedEntry.title
+
     selectedFiles.value = []
   } catch (err) {
     alert(t('op.processError') + ': ' + (err.message || ''))
@@ -362,6 +395,102 @@ function countTime(group) {
   )
 }
 
+// Teams
+const selectedTeamId = ref('all')
+const activeTeamWorkersCount = computed(() => workersStore.getProfile(selectedTeamId.value).workers.length)
+
+// Rank color styling
+const rankColor = (rank) => {
+  const colors = ['#e3f2fd','#bbdefb','#90caf9','#64b5f6','#42a5f5','#1e88e5','#1565c0','#0d47a1']
+  return colors[(Number(rank) - 1) % colors.length] || '#f0f0f0'
+}
+
+// Equipment mismatches
+const hasEquipmentMismatches = computed(() => {
+  return (processingResult.value?.equipment_mismatches?.length || 0) > 0
+})
+const totalMismatchesCount = computed(() => {
+  return processingResult.value?.equipment_mismatches?.length || 0
+})
+const unmatchedSummaryList = computed(() => {
+  return processingResult.value?.unmatched_equipment_summary || []
+})
+const showAllMismatches = ref(false)
+const displayedMismatches = computed(() => {
+  const list = processingResult.value?.equipment_mismatches || []
+  return showAllMismatches.value ? list : list.slice(0, 10)
+})
+
+// History modal and actions
+const showHistoryModal = ref(false)
+const loadedHistoryId = ref(null)
+const loadedHistoryTitle = ref('')
+const historySuccessMessage = ref('')
+
+function openHistoryModal() {
+  historyStore.loadHistory(userId.value)
+  showHistoryModal.value = true
+}
+
+function loadHistoryRun(item) {
+  operations.value = (item.operations || []).map(op => ({
+    ...op,
+    id: op.id || crypto.randomUUID()
+  }))
+  loadedHistoryId.value = item.id
+  loadedHistoryTitle.value = item.title
+  showHistoryModal.value = false
+
+  processingResult.value = {
+    success: true,
+    total_after: item.totalOperations || operations.value.length,
+    files_processed: item.filenames?.length || 1,
+    total_products: item.totalProducts || 1,
+    processing_time_sec: 0,
+    import_meta: item.importMeta || null,
+    equipment_mismatches: item.equipmentMismatches || [],
+    unmatched_equipment_summary: item.unmatchedEquipmentSummary || [],
+  }
+  showResultPanel.value = true
+}
+
+function saveChangesToHistory() {
+  if (!loadedHistoryId.value) return
+  historyStore.updateHistory(loadedHistoryId.value, {
+    operations: operations.value,
+    workerSummary: workerTimeSummary.value,
+  }, userId.value)
+  historySuccessMessage.value = t('history.savedSuccess')
+  setTimeout(() => {
+    historySuccessMessage.value = ''
+  }, 3500)
+}
+
+function closeHistoryEditing() {
+  loadedHistoryId.value = null
+  loadedHistoryTitle.value = ''
+  historySuccessMessage.value = ''
+}
+
+function deleteHistoryItem(item) {
+  if (confirm(t('history.confirmDelete'))) {
+    historyStore.deleteHistory(item.id, userId.value)
+    if (loadedHistoryId.value === item.id) {
+      closeHistoryEditing()
+    }
+  }
+}
+
+function renameHistoryItem(item) {
+  const newTitle = prompt(t('history.edit'), item.title)
+  if (newTitle && newTitle.trim()) {
+    historyStore.updateHistory(item.id, { title: newTitle.trim() }, userId.value)
+    if (loadedHistoryId.value === item.id) {
+      loadedHistoryTitle.value = newTitle.trim()
+    }
+  }
+}
+
 const hasWorkers = computed(() => workersStore.workers.length > 0)
 
 const sortLabels = computed(() => [
@@ -382,6 +511,10 @@ const sortLabels = computed(() => [
       <div class="header-right">
         <button class="lang-toggle" @click="toggleLocale" :title="isEN ? 'Українська' : 'English'">
           {{ isEN ? 'UA' : 'EN' }}
+        </button>
+        <button @click="openHistoryModal" class="history-btn" :class="{ 'history-btn--active': historyStore.history.length > 0 }" :title="t('history.title')">
+          {{ t('history.btn') }}
+          <span v-if="historyStore.history.length > 0" class="history-count-badge">{{ historyStore.history.length }}</span>
         </button>
         <button @click="router.push('/profileOper')" class="workers-btn" :class="{ 'workers-btn--active': hasWorkers }">
           {{ t('nav.profilesTitle') }}
@@ -413,14 +546,26 @@ const sortLabels = computed(() => [
           </div>
         </div>
 
-        <!-- Time unit setting -->
-        <div class="time-unit-setting">
-          <label class="time-unit-label">{{ t('op.timeUnit') }}:</label>
-          <select v-model="timeUnitSetting" class="time-unit-select">
-            <option :value="null">{{ t('op.timeAuto') }}</option>
-            <option value="minutes">{{ t('op.timeMinutes') }}</option>
-            <option value="seconds">{{ t('op.timeSeconds') }}</option>
-          </select>
+        <!-- Processing options row: Time unit & Team selection -->
+        <div class="processing-options-row">
+          <div class="time-unit-setting">
+            <label class="time-unit-label">{{ t('op.timeUnit') }}:</label>
+            <select v-model="timeUnitSetting" class="time-unit-select">
+              <option :value="null">{{ t('op.timeAuto') }}</option>
+              <option value="minutes">{{ t('op.timeMinutes') }}</option>
+              <option value="seconds">{{ t('op.timeSeconds') }}</option>
+            </select>
+          </div>
+
+          <div class="time-unit-setting team-unit-setting">
+            <label class="time-unit-label">👥 {{ t('teams.teamLabel') }}:</label>
+            <select v-model="selectedTeamId" class="time-unit-select team-select">
+              <option value="all">{{ t('teams.all') }}</option>
+              <option v-for="team in workersStore.teams" :key="team.id" :value="team.id">
+                {{ team.name }}
+              </option>
+            </select>
+          </div>
         </div>
 
         <!-- File list -->
@@ -454,8 +599,11 @@ const sortLabels = computed(() => [
         </div>
 
         <div class="upload-panel__actions" v-if="selectedFiles.length > 0">
-          <div v-if="hasWorkers" class="profile-indicator">
-            {{ t('op.profilesLoaded', { n: workersStore.workers.length }) }}
+          <div v-if="activeTeamWorkersCount > 0" class="profile-indicator">
+            {{ t('op.profilesLoaded', { n: activeTeamWorkersCount }) }}
+            <span v-if="selectedTeamId !== 'all'" class="team-active-note">
+              ({{ workersStore.teams.find(t => t.id === selectedTeamId)?.name }})
+            </span>
           </div>
           <button @click="processFiles" class="process-btn" :disabled="isProcessing">
             <span v-if="isProcessing">{{ t('op.processing') }}</span>
@@ -535,6 +683,73 @@ const sortLabels = computed(() => [
         </div>
       </div>
 
+      <!-- Equipment Mismatches Warning Card -->
+      <div v-if="hasEquipmentMismatches" class="mismatch-warning-card">
+        <div class="mismatch-header">
+          <div class="mismatch-icon-badge">⚠️</div>
+          <div class="mismatch-header-text">
+            <h4 class="mismatch-title">{{ t('equip.mismatchesTitle') }}</h4>
+            <p class="mismatch-desc">{{ t('equip.mismatchesDesc') }}</p>
+          </div>
+        </div>
+
+        <!-- Summary chips of missing equipment -->
+        <div class="mismatch-tags" v-if="unmatchedSummaryList.length > 0">
+          <span v-for="item in unmatchedSummaryList" :key="item.equipment" class="mismatch-tag">
+            <span class="mismatch-tag-eq">«{{ item.equipment }}»</span>
+            <span class="mismatch-tag-count">{{ item.count }} {{ t('equip.affectedCount').toLowerCase() }}</span>
+          </span>
+        </div>
+
+        <!-- Details table -->
+        <div class="mismatch-table-wrap">
+          <table class="mismatch-table">
+            <thead>
+              <tr>
+                <th>{{ t('equip.operation') }}</th>
+                <th>{{ t('equip.techNum') }}</th>
+                <th>{{ t('equip.rank') }}</th>
+                <th>{{ t('equip.missingType') }}</th>
+                <th>{{ t('equip.assignedWorker') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(m, mi) in displayedMismatches" :key="mi">
+                <td class="mismatch-name">{{ m.operation_name || '—' }}</td>
+                <td>{{ m.operation_num || '—' }}</td>
+                <td>
+                  <span class="rank-chip" :style="{ background: rankColor(m.rank) }">{{ m.rank }}</span>
+                </td>
+                <td class="mismatch-req-equip">«{{ m.required_equipment }}»</td>
+                <td class="mismatch-assigned">{{ m.assigned_worker || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="totalMismatchesCount > 10" class="mismatch-toggle-wrap">
+            <button @click="showAllMismatches = !showAllMismatches" class="mismatch-toggle-btn">
+              {{ showAllMismatches ? '▲ Згорнути' : `▼ Показати всі (${totalMismatchesCount})` }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History editing banner -->
+      <div v-if="loadedHistoryId" class="history-active-banner">
+        <div class="banner-left">
+          <span class="banner-icon">✏️</span>
+          <span class="banner-text">{{ t('history.editingBanner', { title: loadedHistoryTitle }) }}</span>
+          <span v-if="historySuccessMessage" class="banner-success">{{ historySuccessMessage }}</span>
+        </div>
+        <div class="banner-actions">
+          <button @click="saveChangesToHistory" class="banner-btn banner-btn--save">
+            💾 {{ t('history.saveChanges') }}
+          </button>
+          <button @click="closeHistoryEditing" class="banner-btn banner-btn--close">
+            {{ t('history.closeEditing') }}
+          </button>
+        </div>
+      </div>
+
       <!-- Filter bar -->
       <div class="filter-bar">
         <div class="sort-menu-wrapper">
@@ -609,7 +824,17 @@ const sortLabels = computed(() => [
                 </td>
                 <td><input v-model="group.op.block"       class="table-input" /></td>
                 <td><input v-model="group.op.worker"      class="table-input" /></td>
-                <td><select v-model.number="group.op.rank" class="table-input"><option v-for="n in 8" :key="n" :value="n">{{ n }}</option></select></td>
+                <td class="td-rank">
+                  <div class="rank-select-wrapper" :title="t('th.rank')">
+                    <span class="rank-chip" :style="{ background: rankColor(group.op.rank) }">
+                      {{ group.op.rank || '—' }}
+                    </span>
+                    <select v-model.number="group.op.rank" class="rank-dropdown-overlay">
+                      <option :value="null">—</option>
+                      <option v-for="n in 8" :key="n" :value="n">{{ n }}</option>
+                    </select>
+                  </div>
+                </td>
                 <td><input v-model="group.op.num"         class="table-input" /></td>
                 <td><input v-model="group.op.techNum"     class="table-input" /></td>
                 <td><input v-model="group.op.name"        class="table-input" /></td>
@@ -631,6 +856,78 @@ const sortLabels = computed(() => [
         <button @click="addNewRow"   class="action-btn">{{ t('op.addRow') }}</button>
         <button @click="exportToCSV" class="action-btn export-btn">{{ t('op.exportCSV') }}</button>
         <button @click="exportToXLSX" class="action-btn export-btn export-btn--xlsx">{{ t('op.exportXLSX') }}</button>
+        <button v-if="loadedHistoryId" @click="saveChangesToHistory" class="action-btn save-history-btn">
+          💾 {{ t('history.saveChanges') }}
+        </button>
+        <button @click="openHistoryModal" class="action-btn history-action-btn">
+          📜 {{ t('history.btn') }}
+          <span v-if="historyStore.history.length > 0">({{ historyStore.history.length }})</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- History Modal -->
+    <div v-if="showHistoryModal" class="modal-overlay" @click.self="showHistoryModal = false">
+      <div class="modal-card history-modal">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">📜</span>
+            <h3 class="modal-title">{{ t('history.title') }}</h3>
+          </div>
+          <button @click="showHistoryModal = false" class="modal-close-btn" aria-label="Close">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div v-if="historyStore.history.length === 0" class="history-empty">
+            <span class="history-empty-icon">📁</span>
+            <p>{{ t('history.empty') }}</p>
+          </div>
+          <div v-else class="history-list">
+            <div v-for="item in historyStore.history" :key="item.id" 
+                 class="history-card" :class="{ 'history-card--active': loadedHistoryId === item.id }">
+              <div class="history-card__top">
+                <div class="history-card__header-info">
+                  <h4 class="history-card__title">
+                    {{ item.title }}
+                    <span v-if="loadedHistoryId === item.id" class="loaded-badge">Активна в таблиці</span>
+                  </h4>
+                  <span class="history-card__date">
+                    🕒 {{ new Date(item.createdAt).toLocaleString() }}
+                  </span>
+                </div>
+                <div class="history-card__actions">
+                  <button @click="loadHistoryRun(item)" class="hist-action-btn hist-action-btn--load" :title="t('history.load')">
+                    {{ t('history.load') }}
+                  </button>
+                  <button @click="renameHistoryItem(item)" class="hist-action-btn hist-action-btn--edit" :title="t('history.edit')">
+                    {{ t('history.edit') }}
+                  </button>
+                  <button @click="deleteHistoryItem(item)" class="hist-action-btn hist-action-btn--delete" :title="t('history.delete')">
+                    {{ t('history.delete') }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="history-card__meta">
+                <span class="meta-pill" v-if="item.teamName">
+                  👥 {{ item.teamName }}
+                </span>
+                <span class="meta-pill">
+                  📄 {{ item.filenames && item.filenames.length > 0 ? item.filenames.join(', ') : t('time.unknownFile') }}
+                </span>
+                <span class="meta-pill">
+                  ⚙️ {{ item.totalOperations }} {{ t('history.totalOps').toLowerCase() }}
+                </span>
+                <span class="meta-pill meta-pill--time">
+                  ⏱️ {{ item.totalTimeMin }} хв
+                </span>
+                <span v-if="item.equipmentMismatches && item.equipmentMismatches.length > 0" class="meta-pill meta-pill--warn">
+                  ⚠️ {{ item.equipmentMismatches.length }} невідповідностей
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -914,6 +1211,436 @@ const sortLabels = computed(() => [
 @media (max-width: 640px) {
   .user-name { display: none; }
   .header-right { gap: 8px; }
+}
+
+/* ── Rank display badge ── */
+.td-rank {
+  text-align: center;
+  padding: 6px 8px !important;
+  vertical-align: middle;
+}
+.rank-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.rank-select-wrapper .rank-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #1a237e;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.rank-dropdown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: menulist;
+}
+.rank-select-wrapper:hover .rank-chip {
+  transform: scale(1.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Processing Options Row & Team Setting ── */
+.processing-options-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.team-active-note {
+  font-weight: 700;
+  color: #4e48eb;
+  margin-left: 4px;
+}
+
+/* ── History Header Button ── */
+.history-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.history-btn:hover, .history-btn--active {
+  background: #f3f4f6;
+  border-color: #4e48eb;
+  color: #4e48eb;
+}
+.history-count-badge {
+  background: #4e48eb;
+  color: #fff;
+  border-radius: 10px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── History Editing Banner ── */
+.history-active-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+  border: 1px solid #c7d2fe;
+  border-left: 5px solid #4e48eb;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 5px rgba(78, 72, 235, 0.08);
+}
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.banner-icon { font-size: 18px; }
+.banner-text { font-size: 14px; font-weight: 600; color: #1e1b4b; }
+.banner-success {
+  font-size: 12px;
+  font-weight: 700;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #bbf7d0;
+}
+.banner-actions { display: flex; align-items: center; gap: 8px; }
+.banner-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.banner-btn--save {
+  background: linear-gradient(to right, #4e48eb, #8b3ab3);
+  color: #fff;
+  border: none;
+}
+.banner-btn--save:hover { opacity: 0.9; }
+.banner-btn--close {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  color: #4b5563;
+}
+.banner-btn--close:hover { background: #f3f4f6; color: #111; }
+
+.save-history-btn {
+  background: linear-gradient(to right, #4e48eb, #8b3ab3) !important;
+  color: #fff !important;
+  border: none !important;
+}
+.save-history-btn:hover { opacity: 0.9; }
+.history-action-btn {
+  background: #fff !important;
+  border: 1px solid #4e48eb !important;
+  color: #4e48eb !important;
+}
+.history-action-btn:hover {
+  background: #eef2ff !important;
+}
+
+/* ── Equipment Mismatches Warning Card ── */
+.mismatch-warning-card {
+  background: #fff;
+  border: 1px solid #fcd34d;
+  border-left: 5px solid #f59e0b;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 6px rgba(245, 158, 11, 0.08);
+}
+.mismatch-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.mismatch-icon-badge {
+  font-size: 24px;
+  line-height: 1;
+}
+.mismatch-title {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #92400e;
+}
+.mismatch-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.4;
+}
+.mismatch-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.mismatch-tag {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #92400e;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mismatch-tag-eq { font-weight: 700; }
+.mismatch-tag-count { color: #b45309; }
+.mismatch-table-wrap {
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.mismatch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.mismatch-table th {
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-bottom: 1px solid #fde68a;
+  text-align: left;
+}
+.mismatch-table td {
+  padding: 8px 12px;
+  border-top: 1px solid #fef3c7;
+  color: #333;
+}
+.mismatch-name { font-weight: 500; }
+.mismatch-req-equip { font-weight: 700; color: #b45309; }
+.mismatch-assigned { color: #4e48eb; font-weight: 600; }
+.mismatch-toggle-wrap {
+  padding: 8px;
+  text-align: center;
+  background: #fffbeb;
+  border-top: 1px solid #fde68a;
+}
+.mismatch-toggle-btn {
+  background: none;
+  border: none;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.mismatch-toggle-btn:hover { text-decoration: underline; }
+
+/* ── History Modal & List ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.history-modal {
+  width: 100%;
+  max-width: 820px;
+  max-height: 85vh;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.modal-icon { font-size: 20px; }
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.modal-close-btn:hover { color: #111; background: #f3f4f6; }
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.history-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+.history-empty-icon { font-size: 40px; display: block; margin-bottom: 10px; }
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.history-card {
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: all 0.2s;
+}
+.history-card:hover {
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
+}
+.history-card--active {
+  border-color: #818cf8;
+  background: #f5f3ff;
+  box-shadow: 0 2px 8px rgba(78, 72, 235, 0.12);
+}
+.history-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.history-card__header-info {
+  flex: 1;
+  min-width: 200px;
+}
+.history-card__title {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e1b4b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.loaded-badge {
+  background: #4e48eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.history-card__date {
+  font-size: 12px;
+  color: #6b7280;
+}
+.history-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hist-action-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.hist-action-btn--load {
+  background: #4e48eb;
+  color: #fff;
+}
+.hist-action-btn--load:hover { background: #3b35d8; }
+.hist-action-btn--edit {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+.hist-action-btn--edit:hover { background: #f3f4f6; color: #111; }
+.hist-action-btn--delete {
+  background: #fff;
+  border-color: #fee2e2;
+  color: #dc2626;
+}
+.hist-action-btn--delete:hover { background: #fee2e2; }
+.history-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.meta-pill {
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.meta-pill--time {
+  background: #fdf2f8;
+  color: #9d174d;
+}
+.meta-pill--warn {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 </style>

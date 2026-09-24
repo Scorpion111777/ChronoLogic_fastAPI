@@ -24,11 +24,11 @@ def _is_xlsx(filename: str) -> bool:
     return filename.lower().endswith((".xlsx", ".xls"))
 
 
-def _process_xlsx_fixed(xlsx_bytes: bytes, filename: str) -> dict:
+def _process_xlsx_fixed(xlsx_bytes: bytes, filename: str, time_unit: Optional[str] = None) -> dict:
     from src.core.algorithm import _process_single_df
     import time as _time
     start = _time.time()
-    df, meta = read_xlsx_to_dataframe(xlsx_bytes)
+    df, meta = read_xlsx_to_dataframe(xlsx_bytes, time_unit=time_unit)
     total_before = len(df)
     df = _process_single_df(df)
     total_after = len(df)
@@ -110,21 +110,13 @@ def _process_xlsx_multi(
     combined = pd.concat(all_dfs, ignore_index=True)
     workers = workers_profile.get("workers", [])
 
-    def _assign_worker(row):
-        rank = int(row.get("Розряд", 0))
-        equipment = str(row.get("Обладнання", "")).strip().lower()
-        for w in workers:
-            w_rank = int(w.get("rank", 0))
-            w_eq = str(w.get("equipment_type", "")).strip().lower()
-            if w_rank == rank and (not equipment or not w_eq or w_eq in equipment or equipment in w_eq):
-                return w.get("name", row.get("Робітник", ""))
-        for w in workers:
-            if int(w.get("rank", 0)) == rank:
-                return w.get("name", row.get("Робітник", ""))
-        return row.get("Робітник", "")
-
+    equipment_mismatches = []
+    unmatched_equipment_summary = []
     if workers:
-        combined["Робітник"] = combined.apply(_assign_worker, axis=1)
+        from src.core.algorithm import assign_tasks_to_workers, extract_equipment_list
+        combined, equipment_mismatches, unmatched_equipment_summary = assign_tasks_to_workers(
+            combined, workers
+        )
 
     desired_order = [
         "Блок", "Робітник", "Розряд", "Обладнання",
@@ -149,6 +141,7 @@ def _process_xlsx_multi(
                 "worker": worker_name,
                 "rank": int(profile.get("rank", int(grp["Розряд"].iloc[0]) if "Розряд" in grp.columns else 0)),
                 "equipment_type": profile.get("equipment_type", ""),
+                "equipment_types": profile.get("equipment_types", extract_equipment_list(profile) if workers else []),
                 "equipment_quantity": int(profile.get("equipment_quantity", 1)),
                 "operations_count": op_count,
                 "total_time_min": total_min,
@@ -166,6 +159,8 @@ def _process_xlsx_multi(
         "files_processed": len(all_dfs),
         "file_stats": file_stats,
         "worker_summary": worker_summary,
+        "equipment_mismatches": equipment_mismatches,
+        "unmatched_equipment_summary": unmatched_equipment_summary,
         "data": records,
         "import_meta": all_meta,
     }
@@ -181,14 +176,14 @@ async def process_fixed(
 
     if _is_xlsx(fn):
         try:
-            result = _process_xlsx_fixed(file_bytes, fn)
+            result = _process_xlsx_fixed(file_bytes, fn, time_unit=time_unit)
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e))
     else:
         if not fn.lower().endswith(".csv"):
             raise HTTPException(status_code=400, detail="Only CSV/XLSX files are accepted")
         try:
-            result = process_fixed_operations(file_bytes)
+            result = process_fixed_operations(file_bytes, time_unit=time_unit)
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e))
 
@@ -244,7 +239,7 @@ async def process_multi(
         for f, qty in zip(files, quantities_list):
             files_data.append({"filename": f.filename, "bytes": await f.read(), "quantity": qty})
         try:
-            result = process_multiple_files(files_data, profile)
+            result = process_multiple_files(files_data, profile, time_unit=time_unit)
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e))
 

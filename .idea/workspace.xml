@@ -6,6 +6,15 @@
   <component name="ChangeListManager">
     <list default="true" id="5cdc849c-776c-4be7-86ca-e60f5af12483" name="Changes" comment="fix">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/stores/locale.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/stores/locale.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/stores/workers.js" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/stores/workers.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/OperationsView.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/frontend/views/ProfileOperations.vue" beforeDir="false" afterPath="$PROJECT_DIR$/app/frontend/views/ProfileOperations.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/app/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/core/algorithm.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/core/algorithm.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/core/xlsx_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/core/xlsx_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/routers/api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/routers/api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/tests/test_real_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/tests/test_real_data.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -209,7 +218,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778095157581</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="fix">
+      <option name="closed" value="true" />
+      <created>1785242360326</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1785242360326</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

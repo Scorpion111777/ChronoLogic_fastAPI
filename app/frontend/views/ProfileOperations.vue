@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useWorkersStore } from '../stores/workers.js'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -13,13 +13,28 @@ const localeStore = useLocaleStore()
 const { t, toggleLocale } = localeStore
 const { isEN } = storeToRefs(localeStore)
 
+const userId = computed(() => authStore.currentUser?.id || 'guest')
+
+onMounted(() => {
+  store.loadForUser(userId.value)
+})
+
 function handleLogout() { authStore.logout(); router.push('/') }
 
-const newWorker = ref({ name: '', rank: '', equipment_type: '', equipment_quantity: 1 })
+const activeTab = ref('workers') // 'workers' | 'teams'
+const selectedTeamFilter = ref('all')
+
+const newWorker = ref({ name: '', rank: '', equipment_type: '', equipment_quantity: 1, teamId: '' })
 const editingId = ref(null)
 const editBuffer = ref({})
 const showForm = ref(false)
 const validationError = ref('')
+
+const newTeam = ref({ name: '', description: '' })
+const editingTeamId = ref(null)
+const editTeamBuffer = ref({})
+const showTeamForm = ref(false)
+const teamValidationError = ref('')
 
 const RANKS = [1, 2, 3, 4, 5, 6, 7, 8]
 
@@ -28,16 +43,38 @@ const rankColor = (rank) => {
   return colors[(rank - 1) % colors.length] || '#f0f0f0'
 }
 
+function getTeamName(teamId) {
+  if (!teamId) return t('teams.noTeam')
+  const team = store.teams.find(t => t.id === teamId)
+  return team ? team.name : t('teams.noTeam')
+}
+
+function getWorkerEquipmentList(worker) {
+  if (Array.isArray(worker.equipment_types) && worker.equipment_types.length > 0) {
+    return worker.equipment_types
+  }
+  if (worker.equipment_type) {
+    return String(worker.equipment_type).split(/[,;/|\n]/).map(s => s.trim()).filter(Boolean)
+  }
+  return []
+}
+
+// Worker actions
 function startEdit(worker) {
   editingId.value = worker.id
-  editBuffer.value = { ...worker }
+  editBuffer.value = {
+    ...worker,
+    equipment_type: worker.equipment_type || (worker.equipment_types ? worker.equipment_types.join(', ') : '')
+  }
 }
+
 function saveEdit(id) {
   if (!editBuffer.value.name.trim()) { validationError.value = t('profile.nameRequired'); return }
-  store.updateWorker(id, editBuffer.value)
+  store.updateWorker(id, editBuffer.value, userId.value)
   editingId.value = null
   validationError.value = ''
 }
+
 function cancelEdit() {
   editingId.value = null
   validationError.value = ''
@@ -46,18 +83,69 @@ function cancelEdit() {
 function addWorker() {
   if (!newWorker.value.name.trim()) { validationError.value = t('profile.enterName'); return }
   if (!newWorker.value.rank) { validationError.value = t('profile.selectRank'); return }
-  store.addWorker({ ...newWorker.value })
-  newWorker.value = { name: '', rank: '', equipment_type: '', equipment_quantity: 1 }
+  store.addWorker({ ...newWorker.value }, userId.value)
+  newWorker.value = { name: '', rank: '', equipment_type: '', equipment_quantity: 1, teamId: selectedTeamFilter.value !== 'all' ? selectedTeamFilter.value : '' }
   showForm.value = false
   validationError.value = ''
 }
 
+function removeWorker(id) {
+  store.removeWorker(id, userId.value)
+}
+
+// Team actions
+function addTeam() {
+  if (!newTeam.value.name.trim()) {
+    teamValidationError.value = t('profile.enterName')
+    return
+  }
+  store.addTeam({ ...newTeam.value }, userId.value)
+  newTeam.value = { name: '', description: '' }
+  showTeamForm.value = false
+  teamValidationError.value = ''
+}
+
+function startEditTeam(team) {
+  editingTeamId.value = team.id
+  editTeamBuffer.value = { ...team }
+}
+
+function saveEditTeam(id) {
+  if (!editTeamBuffer.value.name.trim()) return
+  store.updateTeam(id, editTeamBuffer.value, userId.value)
+  editingTeamId.value = null
+}
+
+function cancelEditTeam() {
+  editingTeamId.value = null
+}
+
+function removeTeam(id) {
+  if (confirm(t('teams.confirmDelete'))) {
+    store.removeTeam(id, userId.value)
+    if (selectedTeamFilter.value === id) {
+      selectedTeamFilter.value = 'all'
+    }
+  }
+}
+
+function getTeamMemberCount(teamId) {
+  return store.workers.filter(w => w.teamId === teamId).length
+}
+
+// Filtered workers
+const filteredWorkers = computed(() => {
+  if (selectedTeamFilter.value === 'all') return store.workers
+  return store.workers.filter(w => w.teamId === selectedTeamFilter.value)
+})
+
 const totalEquipment = computed(() =>
-  store.workers.reduce((s, w) => s + (Number(w.equipment_quantity) || 0), 0)
+  filteredWorkers.value.reduce((s, w) => s + (Number(w.equipment_quantity) || 0), 0)
 )
+
 const rankCounts = computed(() => {
   const m = {}
-  store.workers.forEach(w => { m[w.rank] = (m[w.rank] || 0) + 1 })
+  filteredWorkers.value.forEach(w => { m[w.rank] = (m[w.rank] || 0) + 1 })
   return m
 })
 </script>
@@ -80,105 +168,231 @@ const rankCounts = computed(() => {
     </header>
 
     <div class="content-wrapper">
-      <div class="page-title-row">
-        <h2 class="page-title">{{ t('profile.title') }}</h2>
-        <button class="add-btn" @click="showForm = !showForm">
-          {{ showForm ? t('profile.cancel') : t('profile.add') }}
+      <!-- Tabs header -->
+      <div class="tabs-nav">
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'workers' }" @click="activeTab = 'workers'">
+          {{ t('teams.tabWorkers') }} ({{ store.workers.length }})
+        </button>
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'teams' }" @click="activeTab = 'teams'">
+          {{ t('teams.tabTeams') }} ({{ store.teams.length }})
         </button>
       </div>
 
-      <!-- Stats bar -->
-      <div class="stats-bar" v-if="store.workers.length > 0">
-        <div class="stat-card">
-          <span class="stat-num">{{ store.workers.length }}</span>
-          <span class="stat-label">{{ t('profile.workers') }}</span>
+      <!-- WORKERS TAB -->
+      <div v-if="activeTab === 'workers'">
+        <div class="page-title-row">
+          <div class="title-with-filter">
+            <h2 class="page-title">{{ t('profile.title') }}</h2>
+            <div class="team-filter-inline" v-if="store.teams.length > 0">
+              <label>{{ t('teams.teamLabel') }}:</label>
+              <select v-model="selectedTeamFilter" class="team-select">
+                <option value="all">{{ t('teams.all') }}</option>
+                <option v-for="team in store.teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+              </select>
+            </div>
+          </div>
+          <button class="add-btn" @click="showForm = !showForm">
+            {{ showForm ? t('profile.cancel') : t('profile.add') }}
+          </button>
         </div>
-        <div class="stat-card">
-          <span class="stat-num">{{ totalEquipment }}</span>
-          <span class="stat-label">{{ t('profile.equipmentUnits') }}</span>
+
+        <!-- Stats bar -->
+        <div class="stats-bar" v-if="filteredWorkers.length > 0">
+          <div class="stat-card">
+            <span class="stat-num">{{ filteredWorkers.length }}</span>
+            <span class="stat-label">{{ t('profile.workers') }}</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num">{{ totalEquipment }}</span>
+            <span class="stat-label">{{ t('profile.equipmentUnits') }}</span>
+          </div>
+          <div class="stat-card" v-for="(cnt, rank) in rankCounts" :key="rank">
+            <span class="stat-num rank-badge" :style="{ background: rankColor(Number(rank)) }">{{ rank }}</span>
+            <span class="stat-label">{{ t('profile.rank', { n: cnt }) }}</span>
+          </div>
         </div>
-        <div class="stat-card" v-for="(cnt, rank) in rankCounts" :key="rank">
-          <span class="stat-num rank-badge" :style="{ background: rankColor(Number(rank)) }">{{ rank }}</span>
-          <span class="stat-label">{{ t('profile.rank', { n: cnt }) }}</span>
+
+        <!-- Add worker form -->
+        <div v-if="showForm" class="add-form-card">
+          <h3 class="form-title">{{ t('profile.newWorker') }}</h3>
+          <p v-if="validationError" class="error-msg">{{ validationError }}</p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>{{ t('profile.nameLabel') }}</label>
+              <input v-model="newWorker.name" type="text" :placeholder="t('profile.namePlaceholder')" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>{{ t('profile.rankLabel') }}</label>
+              <select v-model.number="newWorker.rank" class="form-input">
+                <option value="" disabled>{{ t('profile.rankPlaceholder') }}</option>
+                <option v-for="r in RANKS" :key="r" :value="r">{{ r }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>{{ t('teams.teamLabel') }}</label>
+              <select v-model="newWorker.teamId" class="form-input">
+                <option value="">{{ t('teams.noTeam') }}</option>
+                <option v-for="team in store.teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+              </select>
+            </div>
+            <div class="form-group span-2">
+              <label>{{ t('profile.equipmentTypeLabel') }}</label>
+              <input v-model="newWorker.equipment_type" type="text" :placeholder="t('equip.multipleHelp')" class="form-input" />
+              <span class="form-hint">{{ t('equip.multipleHelp') }}</span>
+            </div>
+          </div>
+          <button @click="addWorker" class="save-btn">{{ t('profile.save') }}</button>
+        </div>
+
+        <!-- Workers table -->
+        <div class="table-card" v-if="filteredWorkers.length > 0">
+          <table class="workers-table">
+            <thead>
+              <tr>
+                <th>{{ t('profile.workerNum') }}</th>
+                <th>{{ t('profile.name') }}</th>
+                <th>{{ t('profile.rankLabel') }}</th>
+                <th>{{ t('teams.teamLabel') }}</th>
+                <th>{{ t('equip.types') }}</th>
+                <th>{{ t('profile.equipmentQty') }}</th>
+                <th>{{ t('profile.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(worker, idx) in filteredWorkers" :key="worker.id"
+                  :class="{ 'editing-row': editingId === worker.id }">
+                <td class="row-num">{{ idx + 1 }}</td>
+
+                <template v-if="editingId === worker.id">
+                  <td><input v-model="editBuffer.name" class="inline-input" /></td>
+                  <td>
+                    <select v-model.number="editBuffer.rank" class="inline-input inline-select">
+                      <option v-for="r in RANKS" :key="r" :value="r">{{ r }}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select v-model="editBuffer.teamId" class="inline-input inline-select">
+                      <option value="">{{ t('teams.noTeam') }}</option>
+                      <option v-for="team in store.teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input v-model="editBuffer.equipment_type" class="inline-input" :placeholder="t('equip.multipleHelp')" />
+                  </td>
+                  <td><input v-model.number="editBuffer.equipment_quantity" type="number" min="1" class="inline-input inline-num" /></td>
+                  <td class="actions-cell">
+                    <button @click="saveEdit(worker.id)" class="icon-btn save-icon">✓</button>
+                    <button @click="cancelEdit" class="icon-btn cancel-icon">✕</button>
+                  </td>
+                </template>
+
+                <template v-else>
+                  <td class="name-cell">{{ worker.name }}</td>
+                  <td>
+                    <span class="rank-chip" :style="{ background: rankColor(worker.rank) }">{{ worker.rank }}</span>
+                  </td>
+                  <td>
+                    <span class="team-badge-cell" :class="{ 'team-badge--none': !worker.teamId }">
+                      {{ getTeamName(worker.teamId) }}
+                    </span>
+                  </td>
+                  <td class="equip-cell">
+                    <div class="equip-tags-wrap" v-if="getWorkerEquipmentList(worker).length > 0">
+                      <span v-for="eq in getWorkerEquipmentList(worker)" :key="eq" class="equip-tag">
+                        {{ eq }}
+                      </span>
+                    </div>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td class="num-cell">{{ worker.equipment_quantity }}</td>
+                  <td class="actions-cell">
+                    <button @click="startEdit(worker)" class="icon-btn edit-icon" title="Редагувати">✏️</button>
+                    <button @click="removeWorker(worker.id)" class="icon-btn delete-icon" title="Видалити">🗑️</button>
+                  </td>
+                </template>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="!showForm" class="empty-state">
+          <p>{{ t('profile.empty', { btn: t('profile.add') }) }}</p>
         </div>
       </div>
 
-      <!-- Add worker form -->
-      <div v-if="showForm" class="add-form-card">
-        <h3 class="form-title">{{ t('profile.newWorker') }}</h3>
-        <p v-if="validationError" class="error-msg">{{ validationError }}</p>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>{{ t('profile.nameLabel') }}</label>
-            <input v-model="newWorker.name" type="text" :placeholder="t('profile.namePlaceholder')" class="form-input" />
-          </div>
-          <div class="form-group">
-            <label>{{ t('profile.rankLabel') }}</label>
-            <select v-model.number="newWorker.rank" class="form-input">
-              <option value="" disabled>{{ t('profile.rankPlaceholder') }}</option>
-              <option v-for="r in RANKS" :key="r" :value="r">{{ r }}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>{{ t('profile.equipmentTypeLabel') }}</label>
-            <input v-model="newWorker.equipment_type" type="text" :placeholder="t('profile.equipmentTypePlaceholder')" class="form-input" />
-          </div>
+      <!-- TEAMS TAB -->
+      <div v-else-if="activeTab === 'teams'">
+        <div class="page-title-row">
+          <h2 class="page-title">{{ t('teams.title') }}</h2>
+          <button class="add-btn" @click="showTeamForm = !showTeamForm">
+            {{ showTeamForm ? t('profile.cancel') : t('teams.newTeam') }}
+          </button>
         </div>
-        <button @click="addWorker" class="save-btn">{{ t('profile.save') }}</button>
-      </div>
 
-      <!-- Workers table -->
-      <div class="table-card" v-if="store.workers.length > 0">
-        <table class="workers-table">
-          <thead>
-            <tr>
-              <th>{{ t('profile.workerNum') }}</th>
-              <th>{{ t('profile.name') }}</th>
-              <th>{{ t('profile.rankLabel') }}</th>
-              <th>{{ t('profile.equipmentTypeLabel') }}</th>
-              <th>{{ t('profile.equipmentQty') }}</th>
-              <th>{{ t('profile.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(worker, idx) in store.workers" :key="worker.id"
-                :class="{ 'editing-row': editingId === worker.id }">
-              <td class="row-num">{{ idx + 1 }}</td>
+        <!-- Add team form -->
+        <div v-if="showTeamForm" class="add-form-card">
+          <h3 class="form-title">{{ t('teams.newTeam') }}</h3>
+          <p v-if="teamValidationError" class="error-msg">{{ teamValidationError }}</p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>{{ t('teams.teamName') }}</label>
+              <input v-model="newTeam.name" type="text" :placeholder="t('teams.teamNamePlaceholder')" class="form-input" />
+            </div>
+            <div class="form-group span-2">
+              <label>{{ t('teams.teamDesc') }}</label>
+              <input v-model="newTeam.description" type="text" :placeholder="t('teams.teamDescPlaceholder')" class="form-input" />
+            </div>
+          </div>
+          <button @click="addTeam" class="save-btn">{{ t('profile.save') }}</button>
+        </div>
 
-              <template v-if="editingId === worker.id">
-                <td><input v-model="editBuffer.name" class="inline-input" /></td>
-                <td>
-                  <select v-model.number="editBuffer.rank" class="inline-input inline-select">
-                    <option v-for="r in RANKS" :key="r" :value="r">{{ r }}</option>
-                  </select>
-                </td>
-                <td><input v-model="editBuffer.equipment_type" class="inline-input" /></td>
-                <td><input v-model.number="editBuffer.equipment_quantity" type="number" min="1" class="inline-input inline-num" /></td>
-                <td class="actions-cell">
-                  <button @click="saveEdit(worker.id)" class="icon-btn save-icon">✓</button>
-                  <button @click="cancelEdit" class="icon-btn cancel-icon">✕</button>
-                </td>
-              </template>
+        <!-- Teams table -->
+        <div class="table-card" v-if="store.teams.length > 0">
+          <table class="workers-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>{{ t('teams.teamName') }}</th>
+                <th>{{ t('teams.teamDesc') }}</th>
+                <th>{{ t('teams.members') }}</th>
+                <th>{{ t('profile.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(team, idx) in store.teams" :key="team.id" :class="{ 'editing-row': editingTeamId === team.id }">
+                <td class="row-num">{{ idx + 1 }}</td>
 
-              <template v-else>
-                <td class="name-cell">{{ worker.name }}</td>
-                <td>
-                  <span class="rank-chip" :style="{ background: rankColor(worker.rank) }">{{ worker.rank }}</span>
-                </td>
-                <td class="equip-cell">{{ worker.equipment_type || '—' }}</td>
-                <td class="num-cell">{{ worker.equipment_quantity }}</td>
-                <td class="actions-cell">
-                  <button @click="startEdit(worker)" class="icon-btn edit-icon">✏️</button>
-                  <button @click="store.removeWorker(worker.id)" class="icon-btn delete-icon">🗑️</button>
-                </td>
-              </template>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                <template v-if="editingTeamId === team.id">
+                  <td><input v-model="editTeamBuffer.name" class="inline-input" /></td>
+                  <td><input v-model="editTeamBuffer.description" class="inline-input" /></td>
+                  <td class="num-cell">{{ getTeamMemberCount(team.id) }}</td>
+                  <td class="actions-cell">
+                    <button @click="saveEditTeam(team.id)" class="icon-btn save-icon">✓</button>
+                    <button @click="cancelEditTeam" class="icon-btn cancel-icon">✕</button>
+                  </td>
+                </template>
 
-      <div v-else-if="!showForm" class="empty-state">
-        <p>{{ t('profile.empty', { btn: t('profile.add') }) }}</p>
+                <template v-else>
+                  <td class="name-cell">
+                    <span class="team-name-highlight">{{ team.name }}</span>
+                  </td>
+                  <td class="equip-cell">{{ team.description || '—' }}</td>
+                  <td class="num-cell">
+                    <span class="members-chip">{{ getTeamMemberCount(team.id) }}</span>
+                  </td>
+                  <td class="actions-cell">
+                    <button @click="startEditTeam(team)" class="icon-btn edit-icon" title="Редагувати">✏️</button>
+                    <button @click="removeTeam(team.id)" class="icon-btn delete-icon" title="Видалити">🗑️</button>
+                  </td>
+                </template>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="!showTeamForm" class="empty-state">
+          <p>{{ t('teams.empty') }}</p>
+        </div>
       </div>
     </div>
   </main>
@@ -223,10 +437,55 @@ const rankCounts = computed(() => {
   color: #fff; border-color: transparent;
 }
 
-.content-wrapper { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+.content-wrapper { max-width: 1200px; margin: 0 auto; padding: 25px 20px; }
 
-.page-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+/* Tabs */
+.tabs-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 2px;
+}
+.tab-btn {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.2s;
+}
+.tab-btn:hover { color: #4e48eb; background: #eef2ff; }
+.tab-btn--active {
+  color: #4e48eb;
+  border-bottom: 3px solid #4e48eb;
+  background: #fff;
+}
+
+.page-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.title-with-filter { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 .page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; margin: 0; }
+
+.team-filter-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+.team-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  color: #333;
+}
 
 .add-btn {
   padding: 10px 22px; border-radius: 24px; border: none;
@@ -255,6 +514,9 @@ const rankCounts = computed(() => {
 }
 .form-title { font-size: 16px; font-weight: 700; margin: 0 0 16px; color: #333; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.span-2 { grid-column: span 2; }
+@media (max-width: 640px) { .span-2 { grid-column: span 1; } }
+
 .form-group { display: flex; flex-direction: column; gap: 4px; }
 .form-group label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .4px; }
 .form-input {
@@ -263,6 +525,7 @@ const rankCounts = computed(() => {
   font-family: inherit;
 }
 .form-input:focus { outline: none; border-color: #4e48eb; background: #fff; }
+.form-hint { font-size: 11px; color: #888; margin-top: 2px; }
 
 .save-btn {
   padding: 9px 28px; border-radius: 20px;
@@ -296,6 +559,54 @@ const rankCounts = computed(() => {
 .rank-chip {
   display: inline-block; padding: 3px 12px; border-radius: 14px;
   font-weight: 700; font-size: 13px; color: #1a237e;
+}
+
+.team-badge-cell {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eef2ff;
+  color: #4e48eb;
+  border: 1px solid #c7d2fe;
+}
+.team-badge--none {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+}
+
+.equip-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.equip-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.text-muted { color: #999; }
+
+.team-name-highlight {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.members-chip {
+  display: inline-block;
+  padding: 3px 12px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  font-weight: 700;
+  color: #4b5563;
 }
 
 .inline-input {
@@ -349,5 +660,4 @@ const rankCounts = computed(() => {
 }
 .logout-btn-profile:hover { color: #e53935; }
 @media (max-width: 640px) { .user-name-profile { display: none; } }
-
 </style>

@@ -7,6 +7,9 @@ import pandas as pd
 import numpy as np
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from src.utils.llm_utils import (
+    resolve_column_mapping, REQUIRED_COLUMNS, ensure_template_columns, SAMPLE_ROWS_LIMIT,
+)
 
 
 COLUMN_PATTERNS = {
@@ -99,21 +102,42 @@ def _get_sheet_data(ws) -> Tuple[List[str], List[List[Any]]]:
     if not all_rows:
         return [], []
 
+    # Find the header row by looking at the first 10 rows.
+    # The header row should have >= 2 non-empty cells.
     header_row_idx = 0
-    headers = [str(c) if c is not None else "" for c in all_rows[0]]
+    max_non_empty = 0
+    best_idx = 0
 
-    non_empty_count = sum(1 for h in headers if h.strip())
-    if non_empty_count < 2 and len(all_rows) > 1:
-        header_row_idx = 1
-        headers = [str(c) if c is not None else "" for c in all_rows[1]]
+    for idx, r in enumerate(all_rows[:10]):
+        non_empty = sum(1 for c in r if c is not None and str(c).strip())
+        if non_empty > max_non_empty:
+            max_non_empty = non_empty
+            best_idx = idx
+
+    if max_non_empty >= 2:
+        header_row_idx = best_idx
+
+    raw_headers = all_rows[header_row_idx]
+    headers = [str(c).strip() if c is not None else "" for c in raw_headers]
+    seen: Dict[str, int] = {}
+    clean_headers: List[str] = []
+    for i, h in enumerate(headers):
+        if not h:
+            h = f"Колонка_{i+1}"
+        if h in seen:
+            seen[h] += 1
+            h = f"{h}_{seen[h]}"
+        else:
+            seen[h] = 0
+        clean_headers.append(h)
 
     data_rows = []
     for row in all_rows[header_row_idx + 1:]:
-        if all(c is None for c in row):
+        if all(c is None or str(c).strip() == "" for c in row):
             continue
         data_rows.append(list(row))
 
-    return headers, data_rows
+    return clean_headers, data_rows
 
 
 def read_xlsx_to_dataframe(xlsx_bytes: bytes, time_unit: Optional[str] = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
@@ -126,50 +150,10 @@ def read_xlsx_to_dataframe(xlsx_bytes: bytes, time_unit: Optional[str] = None) -
     if not headers:
         raise ValueError("XLSX file is empty or has no headers")
 
-    column_mapping = _find_column_mapping(headers)
-
-    time_target = "Затрати часу, хв"
-    mapped_time_col = column_mapping.get(time_target)
-
-    raw_time_values = []
-    if mapped_time_col:
-        time_idx = headers.index(mapped_time_col)
-        for row in data_rows:
-            if time_idx < len(row):
-                val = row[time_idx]
-                try:
-                    raw_time_values.append(float(str(val).replace(",", ".").replace(" ", "").replace("\xa0", "")))
-                except (ValueError, TypeError):
-                    pass
-
-    detected_unit = time_unit or _detect_time_unit(raw_time_values)
-
-    renamed = {}
-    for target, source in column_mapping.items():
-        renamed[source] = target
-
     df = pd.DataFrame(data_rows, columns=headers)
-    df = df.rename(columns=renamed)
+    sample_rows = data_rows[:SAMPLE_ROWS_LIMIT]
 
-    if detected_unit == "seconds" and time_target in df.columns:
-        df[time_target] = (
-            df[time_target].astype(str)
-            .str.replace('\xa0', '', regex=False)
-            .str.replace('\u00a0', '', regex=False)
-            .str.replace(' ', '', regex=False)
-            .str.replace(',', '.', regex=False)
-        )
-        df[time_target] = pd.to_numeric(df[time_target], errors="coerce").fillna(0.0)
-        df[time_target] = (df[time_target] / 60).round(4)
-
-    meta = {
-        "column_mapping": column_mapping,
-        "detected_time_unit": detected_unit,
-        "original_headers": headers,
-        "mapped_count": len(column_mapping),
-        "total_columns": len(headers),
-    }
-
+    df, meta = ensure_template_columns(df, sample_rows=sample_rows, time_unit=time_unit)
     return df, meta
 
 
